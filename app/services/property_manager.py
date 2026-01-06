@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from app.models.property_submission import PropertySubmission, PropertySubmissionWithStatus, PropertyStatus
@@ -44,7 +45,7 @@ class PropertyManager:
         # محاسبه سن بنا
         age = None
         if submission.year_built:
-            from datetime import datetime
+
             current_year = 1403  # سال جاری شمسی
             age = current_year - submission.year_built
 
@@ -73,7 +74,7 @@ class PropertyManager:
             "has_storage": submission.has_storage,
             "is_renovated": submission.is_renovated or False,
             "open_to_exchange": submission.open_to_exchange,
-            "exchange_preferences": submission.exchange_preferences or [],
+            "exchange_preferences": json.dumps(submission.exchange_preferences) if submission.exchange_preferences else json.dumps([]),
             "created_at": now,
             "updated_at": now
         }
@@ -322,6 +323,9 @@ class PropertyManager:
     def update_property_details(self, property_id: str, updates: Dict) -> bool:
         """آپدیت جزییات ملک"""
         try:
+            if "exchange_preferences" in updates and isinstance(updates["exchange_preferences"], list):
+                updates["exchange_preferences"] = json.dumps(updates["exchange_preferences"])
+
             updates['updated_at'] = datetime.now().isoformat()
             result = database_service.update("properties", property_id, updates)
             return bool(result)
