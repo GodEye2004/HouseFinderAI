@@ -1,0 +1,52 @@
+{
+  "d2f043bf-f2dd-4dda-a1e4-f7fd31c5808f": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "سلام"
+      },
+      {
+        "role": "user",
+        "content": "سلام"
+      }
+    ],
+    "memory": {
+      "facts": {},
+      "preferences": {},
+      "entities_mentioned": {},
+      "timeline": []
+    },
+    "requirements": {
+      "budget_min": null,
+      "budget_max": null,
+      "property_type": null,
+      "transaction_type": null,
+      "area_min": null,
+      "area_max": null,
+      "city": null,
+      "district": null,
+      "bedrooms_min": null,
+      "year_built_min": null,
+      "document_type": null,
+      "max_age": null,
+      "min_floor": null,
+      "must_have_parking": false,
+      "must_have_elevator": false,
+      "must_have_storage": false,
+      "has_exchange_item": false,
+      "exchange_item_type": null,
+      "exchange_item_value": null
+    },
+    "current_stage": "chatting",
+    "missing_fields": [],
+    "search_results": null,
+    "decision_summary": null,
+    "recommendations": null,
+    "wants_exchange": false,
+    "exchange_item": null,
+    "exchange_value": null,
+    "exchange_matches": null,
+    "needs_user_input": true,
+    "next_message": "سلام دوست عزیز! چطوری؟ چیزی هست که بتونم کمکت کنم؟ 😊"
+  }
+}

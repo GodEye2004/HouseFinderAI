@@ -323,7 +323,7 @@ global_results = search_without_city_filter()
 if global_results:
     return "Not found in Tehran, but found in Gorgan"
 ```
-
+ 
 #### D. Score & Rank
 ```python
 PropertyScoringSystem.rank_properties()

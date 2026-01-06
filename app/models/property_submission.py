@@ -21,17 +21,17 @@ class PropertySubmission(BaseModel):
     # اطلاعات تکمیلی
     bedrooms: Optional[int] = None
     year_built: Optional[int] = None
-    floor: Optional[int] = None
-    total_floors: Optional[int] = None
+    floor: Optional[int] = 0
+    total_floors: Optional[int] = 0
 
     # نوع سند
-    document_type: Optional[str] = None
+    document_type: Optional[str] = ""
 
     # امکانات
     has_parking: bool = False
     has_elevator: bool = False
     has_storage: bool = False
-    is_renovated: bool = False
+    is_renovated: Optional[bool] = False
 
     # معاوضه
     open_to_exchange: bool = False

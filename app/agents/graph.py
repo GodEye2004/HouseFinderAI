@@ -15,10 +15,8 @@ def create_agent_graph():
 
     workflow = StateGraph(AgentState)
 
-    # فقط یه نود!
     workflow.add_node("chat", chat_node)
 
-    # همیشه به chat می‌ره
     workflow.set_entry_point("chat")
     workflow.add_edge("chat", END)
 

@@ -92,7 +92,7 @@ class RealEstateLLMService:
         try:
             messages = [{"role": "system", "content": system_prompt}]
 
-            # تاریخچه (فقط 4 پیام آخر)
+            # memory 4 message.
             for msg in conversation_history[-8:]:
                 messages.append(msg)
 
@@ -130,7 +130,7 @@ class RealEstateLLMService:
         memory_summary = memory.get_summary()
         stage = context.get('stage', 'chatting')
 
-        # تعیین سیستم پرامپت بر اساس مرحله
+        # fix prompt as a state.
         if stage == 'chatting':
             system_prompt = self._get_chat_prompt(memory_summary, context)
         elif stage == 'no_results':
@@ -145,7 +145,7 @@ class RealEstateLLMService:
         try:
             messages = [{"role": "system", "content": system_prompt}]
 
-            # تاریخچه
+            # memory
             for msg in conversation_history[-10:]:
                 messages.append(msg)
 

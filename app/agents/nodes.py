@@ -19,7 +19,6 @@ def chat_node(state: AgentState) -> AgentState:
     LLM کنترل کامل رو داره
     """
 
-    # بررسی اینکه پیامی وجود داره
     if not state["messages"] or len(state["messages"]) == 0:
         state["next_message"] = "سلام! من هومنگرم ، مشاور املاک شما 👋\nچطور می‌تونم کمکتون کنم؟"
         state["needs_user_input"] = True
@@ -34,7 +33,7 @@ def chat_node(state: AgentState) -> AgentState:
     print(f"📨 پیام کاربر: {last_message}")
     print(f"🧠 حافظه فعلی: {list(memory.facts.keys())}")
 
-    # فهم کامل پیام با LLM
+    # llm undrestanding
     if llm_service.enabled:
         try:
             understanding = llm_service.understand_and_extract(
@@ -49,7 +48,6 @@ def chat_node(state: AgentState) -> AgentState:
             extracted = understanding.get('extracted_info', {})
             user_intent = understanding.get('user_intent', 'chat')
 
-            # آپدیت حافظه و requirements
             _update_memory_and_requirements(extracted, memory, requirements, state)
 
             print(f"✅ حافظه بعد آپدیت: {list(memory.facts.keys())}")
@@ -59,16 +57,13 @@ def chat_node(state: AgentState) -> AgentState:
             # ⭐ CRITICAL: تصمیم‌گیری درست
             should_search = _should_search(memory)
             
-            # برای معاوضه همیشه اول ببینیم اطلاعات کافیه یا نه
             if extracted.get('wants_exchange') or state.get("wants_exchange"):
-                 # اگر آیتم یا ارزش مشخص نیست، جستجو نکن تا اول بپرسی
                  if not (memory.get_fact('exchange_item') or extracted.get('exchange_item')) or \
                     not (memory.get_fact('exchange_value') or extracted.get('exchange_value')):
                      should_search = False
 
             print(f"🔍 آیا باید جستجو کنم؟ {should_search}")
 
-            # فقط اگه واقعا اطلاعات کافی داریم جستجو کن
             if should_search and (user_intent == 'search' or len(extracted) > 0):
                 print("🎯 در حال جستجو...")
                 state = _perform_search(state, memory, requirements)
@@ -81,13 +76,11 @@ def chat_node(state: AgentState) -> AgentState:
 
         except Exception as e:
             print(f"❌ خطا در پردازش LLM: {e}")
-            # تلاش برای استخراج دستی
             _simple_extraction(last_message, memory, requirements)
             state = _generate_chat_response_fallback(state, memory, last_message)
             
     else:
         print("⚠️ LLM غیرفعال - استفاده از fallback")
-        # تلاش برای استخراج دستی
         _simple_extraction(last_message, memory, requirements)
         state = _generate_chat_response_fallback(state, memory, last_message)
 
@@ -104,7 +97,6 @@ def _simple_extraction(text: str, memory: ConversationMemory, requirements: User
     """استخراج ساده بر اساس کلمات کلیدی برای زمانی که LLM کار نمی‌کند"""
     text = text.lower()
     
-    # نوع ملک
     if "آپارتمان" in text:
         memory.add_fact('property_type', "آپارتمان")
         requirements.property_type = PropertyType.APARTMENT
@@ -118,7 +110,7 @@ def _simple_extraction(text: str, memory: ConversationMemory, requirements: User
         memory.add_fact('property_type', "زمین")
         requirements.property_type = PropertyType.LAND
         
-    # شهر
+    # city
     cities = ["تهران", "کرج", "شیراز", "اصفهان", "مشهد", "تبریز", "رشت"]
     for city in cities:
         if city in text:
@@ -235,11 +227,11 @@ def _should_search(memory: ConversationMemory) -> bool:
     has_area = memory.get_fact('area_min') is not None
     has_transaction = memory.get_fact('transaction_type') is not None
 
-    print(f"   💰 بودجه: {has_budget}")
-    print(f"   🏙 شهر: {has_city}")
-    print(f"   🏠 نوع: {has_type}")
-    print(f"   🔄 معامله: {has_transaction}")
-    print(f"   📐 متراژ: {has_area}")
+    print(f"   بودجه: {has_budget}")
+    print(f"    شهر: {has_city}")
+    print(f"   نوع: {has_type}")
+    print(f"    معامله: {has_transaction}")
+    print(f"    متراژ: {has_area}")
 
     # اگر کاربر درخواست جستجو کرده (در intent)، که در نود چک می‌شود
     # اینجا فقط تصمیم می‌گیریم آیا "بدون درخواست صریح" جستجو کنیم یا نه
