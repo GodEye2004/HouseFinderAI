@@ -7,13 +7,12 @@ from app.services.postgres_service import postgres_service as database_service
 import uuid
 
 class PropertyManager:
-    """مدیریت آگهی‌های املاک با استفاده از PostgreSQL"""
+    """ manage ads with PostgreSQL"""
 
     def __init__(self):
         pass
 
     def _map_status_to_db(self, status: str) -> str:
-        """تبدیل وضعیت به فرمت دیتابیس"""
         if status == PropertyStatus.PENDING:
             return 'در_انتظار_تایید'
         elif status == PropertyStatus.APPROVED:
@@ -23,7 +22,6 @@ class PropertyManager:
         return 'در_انتظار_تایید'
 
     def _map_status_from_db(self, status: str) -> str:
-        """تبدیل وضعیت از فرمت دیتابیس"""
         if status == 'در_انتظار_تایید':
             return PropertyStatus.PENDING
         elif status == 'تایید_شده':
@@ -37,19 +35,19 @@ class PropertyManager:
             submission: PropertySubmission,
             user_id: Optional[str] = None
     ) -> PropertySubmissionWithStatus:
-        """ثبت آگهی جدید در PostgreSQL"""
+        """ add new ads in PostgreSQL"""
 
         property_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
         
-        # محاسبه سن بنا
+        # calculate age of building
         age = None
         if submission.year_built:
 
-            current_year = 1403  # سال جاری شمسی
+            current_year = 1403  
             age = current_year - submission.year_built
 
-        # آماده‌سازی دیتا برای ذخیره
+        # ready data for save
         db_data = {
             "id": property_id,
             "user_id": user_id,
@@ -58,7 +56,7 @@ class PropertyManager:
             "description": submission.description or "",
             "property_type": submission.property_type,
             "transaction_type": submission.transaction_type,
-            "status": 'تایید_شده',  # پیش‌فرض تایید شده
+            "status": 'تایید_شده',  # approved defult.
             "price": submission.price or 0,
             "area": submission.area or 0,
             "city": submission.city or "",
@@ -79,19 +77,19 @@ class PropertyManager:
             "updated_at": now
         }
 
-        # حذف فیلدهای None
+        # delete None fields
         db_data = {k: v for k, v in db_data.items() if v is not None}
 
-        # ذخیره در PostgreSQL
+        # save in PostgreSQL
         try:
             result = database_service.insert("properties", db_data)
             if not result:
-                raise Exception("خطا در ثبت آگهی")
+                raise Exception("error in create ads")
         except Exception as e:
-            print(f"خطا در ثبت آگهی: {e}")
+            print(f"error in create ads :  {e}")
             raise
 
-        # ایجاد آبجکت بازگشتی
+        # create return object
         return PropertySubmissionWithStatus(
             id=property_id,
             status=PropertyStatus.APPROVED,
@@ -101,7 +99,7 @@ class PropertyManager:
         )
 
     def get_submission(self, property_id: str) -> Optional[PropertySubmissionWithStatus]:
-        """دریافت آگهی از PostgreSQL"""
+        """get ads from PostgreSQL"""
         try:
             results = database_service.select("properties", filters={"id": property_id})
             if not results:
@@ -110,16 +108,16 @@ class PropertyManager:
             data = results[0]
             return self._map_db_to_submission(data)
         except Exception as e:
-            print(f"خطا در دریافت آگهی: {e}")
+            print(f"error to get ads :  {e}")
             return None
 
     def get_user_submissions(self, user_id: str) -> List[PropertySubmissionWithStatus]:
-        """دریافت آگهی‌های یک کاربر"""
+        """fetch ads from one user"""
         try:
             results = database_service.select("properties", filters={"user_id": user_id})
             return [self._map_db_to_submission(item) for item in results]
         except Exception as e:
-            print(f"خطا در دریافت آگهی‌های کاربر: {e}")
+            print(f" error to get user ads :  {e}")
             return []
 
     def get_all_submissions(
@@ -128,7 +126,7 @@ class PropertyManager:
             limit: int = 100,
             offset: int = 0
     ) -> List[PropertySubmissionWithStatus]:
-        """دریافت تمام آگهی‌ها"""
+        """get all ads """
         try:
             filters = {}
             if status:
@@ -145,7 +143,7 @@ class PropertyManager:
             submissions.sort(key=lambda x: x.created_at if x.created_at else "", reverse=True)
             return submissions
         except Exception as e:
-            print(f"خطا در دریافت آگهی‌ها: {e}")
+            print(f" error to get all ads : {e}")
             return []
 
     def update_status(
@@ -154,7 +152,7 @@ class PropertyManager:
             new_status: PropertyStatus,
             admin_note: Optional[str] = None
     ) -> bool:
-        """تغییر وضعیت آگهی"""
+        """change ads state"""
         db_status = self._map_status_to_db(new_status)
         try:
             update_data = {
@@ -167,20 +165,19 @@ class PropertyManager:
             result = database_service.update("properties", property_id, update_data)
             return bool(result)
         except Exception as e:
-            print(f"خطا در بروزرسانی وضعیت: {e}")
+            print(f"error in update ads state {e}")
             return False
 
     def delete_submission(self, property_id: str) -> bool:
-        """حذف آگهی"""
+        """delete ads"""
         try:
             return database_service.delete("properties", property_id)
         except Exception as e:
-            print(f"خطا در حذف آگهی: {e}")
+            print(f"error in delete ads :  {e}")
             return False
 
     def _map_db_to_submission(self, data: Dict) -> PropertySubmissionWithStatus:
-        """تبدیل دیتای دیتابیس به مدل پایتون"""
-        # تبدیل رشته به datetime اگر نیاز است
+        """change data in DB to pythom model"""
         created_at = data.get("created_at")
         updated_at = data.get("updated_at")
         
@@ -189,7 +186,6 @@ class PropertyManager:
         if isinstance(updated_at, datetime):
             updated_at = updated_at.isoformat()
 
-        # محاسبه سال ساخت از روی سن
         year_built = data.get("year_built")
         if year_built is None and data.get("age") is not None:
             year_built = 1403 - data.get("age")
@@ -225,8 +221,7 @@ class PropertyManager:
             self,
             submission: PropertySubmissionWithStatus
     ) -> Property:
-        """تبدیل آگهی به Property برای نمایش"""
-        # تبدیل رشته‌ها به enum اگر معتبر باشند
+        """change ads to property for show it"""
         try:
             property_type = PropertyType(submission.property_type) if submission.property_type else None
         except:
@@ -267,21 +262,21 @@ class PropertyManager:
         )
 
     def get_all_properties(self) -> List[Property]:
-        """دریافت تمام املاک تایید شده به صورت آبجکت Property"""
+        """get all amlac like object if approved"""
         submissions = self.get_all_submissions(status=PropertyStatus.APPROVED)
         return [self.convert_to_property(s) for s in submissions]
 
     def get_property_by_id(self, property_id: str) -> Optional[Property]:
-        """دریافت ملک با ID"""
+        """get amlac with id"""
         submission = self.get_submission(property_id)
         if submission:
             return self.convert_to_property(submission)
         return None
 
     def get_exchange_properties(self) -> List[Property]:
-        """دریافت املاک مناسب معاوضه"""
+        """get amlac ready for exchange"""
         try:
-            # استفاده از فیلتر برای کارایی بهتر
+            # use filter for better performance
             results = database_service.select(
                 "properties", 
                 filters={
@@ -292,13 +287,12 @@ class PropertyManager:
             submissions = [self._map_db_to_submission(item) for item in results]
             return [self.convert_to_property(s) for s in submissions]
         except Exception as e:
-            print(f"خطا در دریافت املاک معاوضه: {e}")
+            print(f" error to get reday to exchange amlac :  {e}")
             return []
 
     def get_statistics(self) -> Dict[str, Any]:
-        """آمار آگهی‌ها"""
+        """amar ads"""
         try:
-            # استفاده از کوئری مستقیم برای کارایی بهتر
             query = """
                 SELECT 
                     COUNT(*) as total,
@@ -317,11 +311,11 @@ class PropertyManager:
                 }
             return {"total": 0, "pending": 0, "approved": 0, "rejected": 0}
         except Exception as e:
-            print(f"خطا در دریافت آمار: {e}")
+            print(f" error to get amlac amar : {e}")
             return {"total": 0, "pending": 0, "approved": 0, "rejected": 0}
 
     def update_property_details(self, property_id: str, updates: Dict) -> bool:
-        """آپدیت جزییات ملک"""
+        """update amlac details"""
         try:
             if "exchange_preferences" in updates and isinstance(updates["exchange_preferences"], list):
                 updates["exchange_preferences"] = json.dumps(updates["exchange_preferences"])
@@ -330,7 +324,7 @@ class PropertyManager:
             result = database_service.update("properties", property_id, updates)
             return bool(result)
         except Exception as e:
-            print(f"خطا در بروزرسانی ملک: {e}")
+            print(f"error in update details of amlac :  {e}")
             return False
 
     def search_properties(
@@ -347,7 +341,7 @@ class PropertyManager:
     ) -> List[PropertySubmissionWithStatus]:
         """جستجوی پیشرفته در املاک"""
         try:
-            # ساخت فیلترها
+            # creat filter
             filters = {"status": "تایید_شده"}
             
             if city:
@@ -357,8 +351,8 @@ class PropertyManager:
             if property_type:
                 filters["property_type"] = property_type
             
-            # گرفتن تمام نتایج و فیلتر کردن در پایتون
-            # (در نسخه پیشرفته‌تر می‌توان کوئری داینامیک ساخت)
+            #  get all result and filtered in python
+            # in perfessional way we can create dynamic query
             results = database_service.select(
                 "properties", 
                 filters=filters,
@@ -366,7 +360,7 @@ class PropertyManager:
                 offset=offset
             )
             
-            # فیلترهای عددی
+            # numeric filter
             filtered_results = []
             for item in results:
                 if min_price is not None and item.get("price", 0) < min_price:
@@ -381,8 +375,8 @@ class PropertyManager:
             
             return [self._map_db_to_submission(item) for item in filtered_results]
         except Exception as e:
-            print(f"خطا در جستجوی املاک: {e}")
+            print(f"error in searching amlack {e}")
             return []
 
-# Instance سراسری
+# Instance for all
 property_manager = PropertyManager()

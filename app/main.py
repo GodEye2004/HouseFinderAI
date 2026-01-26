@@ -10,7 +10,7 @@ from app.services import property_manager
 from app.services.memory_service import ConversationMemory
 from typing import Dict
 import uuid
-
+from app.services.divar_api import divar_router
 from app.services.property_manager import property_manager, PropertyManager
 
 # ما از property_manager که در ماژول اینستنس شده استفاده میکنیم
@@ -22,6 +22,8 @@ app = FastAPI(
     description="سیستم مشاوره املاک با LLM یکپارچه و حافظه کامل",
     version="2.0.0"
 )
+
+app.include_router(divar_router)
 
 
 # CORS

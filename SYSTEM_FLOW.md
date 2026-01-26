@@ -80,7 +80,7 @@ This is an intelligent real estate conversational agent that helps users find pr
 │  ┌──────────────────────────────────────────────────────┐      │
 │  │  1. Get All Properties                               │      │
 │  │     • property_manager.get_all_properties()          │      │
-│  │     • Fetches from Supabase (APPROVED status)        │      │
+│  │     • Fetches from postgresSQL (APPROVED status)        │      │
 │  └──────────────────┬───────────────────────────────────┘      │
 │                     │                                            │
 │                     ▼                                            │
@@ -370,7 +370,7 @@ PropertyScoringSystem.rank_properties()
 ### 7. **Property Manager** (`app/services/property_manager.py`)
 **Purpose**: Property CRUD operations
 
-**Data Source**: Supabase database
+**Data Source**: postgresSQL
 
 **Key Methods**:
 
@@ -404,7 +404,7 @@ PropertyScoringSystem.rank_properties()
 
 ---
 
-## 🔄 Complete User Journey Example
+## Complete User Journey Example
 
 ### Scenario: User wants to buy property in Tehran with exchange
 
@@ -526,7 +526,7 @@ PropertyScoringSystem.rank_properties()
 
 ---
 
-## 🧠 Key Intelligence Features
+##  Key Intelligence Features
 
 ### 1. **Budget Calculation with Exchange**
 ```python
@@ -560,12 +560,11 @@ if no_results_in_city:
 
 ---
 
-## 🔧 Configuration
+##  Configuration
 
 ### Environment Variables
 ```bash
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
+POSTGRESS_URL=your_postgres_url
 OPENAI_API_KEY=your_github_models_key  # GitHub Models API
 ```
 
@@ -577,7 +576,7 @@ base_url = "https://models.github.ai/inference"
 
 ---
 
-## 📊 Data Models
+##  Data Models
 
 ### AgentState
 ```python
