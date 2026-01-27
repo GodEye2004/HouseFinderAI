@@ -1,5 +1,5 @@
 # database_setup.py
-from app.services.postgres_service import postgres_service
+from app.core.postgres_service import postgres_service
 
 def create_tables_if_not_exist():
     """ایجاد جداول در صورت عدم وجود"""

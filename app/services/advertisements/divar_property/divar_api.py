@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.services.postgres_service import postgres_service
-from app.models.divar_pydantic import DivarProperty  # the Pydantic model for divar_data
+from app.core.postgres_service import postgres_service
+from app.models.divar_propertys import DivarProperty  # the Pydantic model for divar_data
 
 divar_router = APIRouter(prefix="/divar", tags=["Divar Properties"])
 

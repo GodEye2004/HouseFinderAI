@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
 from app.agents.nodes import chat_node
 from app.models.property import UserRequirements
-from app.services.memory_service import ConversationMemory
+from app.services.brain.memory_service import ConversationMemory
 
 
 def create_agent_graph():

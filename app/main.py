@@ -5,13 +5,14 @@ from app.models.property_submission import PropertySubmission
 from app.models.user import ChatRequest, ChatResponse
 from app.agents.graph import create_agent_graph, initialize_state
 from app.agents.state import AgentState
-from app.services import property_manager
+from app.services.advertisements.app_property import property_manager
 # from app.services import property_manager
-from app.services.memory_service import ConversationMemory
+from app.services.advertisements.app_property.property_manager import PropertyManager
+from app.services.brain.memory_service import ConversationMemory
 from typing import Dict
 import uuid
-from app.services.divar_api import divar_router
-from app.services.property_manager import property_manager, PropertyManager
+from app.services.advertisements.divar_property.divar_api import divar_router
+from app.services.advertisements.app_property.property_manager import property_manager
 
 # ما از property_manager که در ماژول اینستنس شده استفاده میکنیم
 # manager = PropertyManager() رو حذف میکنیم تا دوگانگی پیش نیاد
@@ -35,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.services.persistence import save_sessions, load_sessions
+from app.services.llm_brain.persistence import save_sessions, load_sessions
 
 # ذخیره session ها
 sessions: Dict[str, AgentState] = load_sessions()

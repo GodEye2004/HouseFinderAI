@@ -1,10 +1,10 @@
 from app.agents.state import AgentState
 from app.models.property import UserRequirements, PropertyType, TransactionType, DocumentType
-from app.services.decision_engine import DecisionEngine
-from app.services.matching import ExchangeMatchingService
-from app.services.llm_service import RealEstateLLMService
-from app.services.memory_service import ConversationMemory
-from app.services.property_manager import property_manager
+from app.services.brain.decision_engine import DecisionEngine
+from app.services.brain.matching import ExchangeMatchingService
+from app.services.llm_brain.llm_service import RealEstateLLMService
+from app.services.brain.memory_service import ConversationMemory
+from app.services.advertisements.app_property.property_manager import property_manager
 
 
 # ایجاد instance ها

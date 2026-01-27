@@ -2,7 +2,7 @@ import json
 import os
 from typing import Dict, List
 from app.agents.state import AgentState
-from app.services.memory_service import ConversationMemory
+from app.services.brain.memory_service import ConversationMemory
 from app.models.property import UserRequirements, PropertyScore
 
 SESSION_FILE = "data/sessions.json"

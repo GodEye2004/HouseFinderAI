@@ -2,7 +2,7 @@
 
 from typing import TypedDict, List, Optional, Annotated, Dict
 from app.models.property import UserRequirements, PropertyScore
-from app.services.memory_service import ConversationMemory
+from app.services.brain.memory_service import ConversationMemory
 import operator
 
 

@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 from app.models.property_submission import PropertySubmission, PropertySubmissionWithStatus, PropertyStatus
 from app.models.property import Property, PropertyType, TransactionType, DocumentType
-from app.services.postgres_service import postgres_service as database_service
+from app.core.postgres_service import postgres_service as database_service
 import uuid
 
 class PropertyManager:

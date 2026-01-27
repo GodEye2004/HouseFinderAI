@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 from typing import List, Dict, Optional
 import json
-from app.services.memory_service import ConversationMemory
+from app.services.brain.memory_service import ConversationMemory
 
 
 class RealEstateLLMService:

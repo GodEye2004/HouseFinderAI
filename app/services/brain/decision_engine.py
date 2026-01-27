@@ -1,7 +1,7 @@
 from app.models.property import Property, UserRequirements, PropertyScore
 from typing import List, Dict, Tuple
-from app.services.scoring import PropertyScoringSystem
-from app.services.property_manager import property_manager
+from app.services.brain.scoring import PropertyScoringSystem
+from app.services.advertisements.app_property.property_manager import property_manager
 
 
 
