@@ -5,9 +5,7 @@ from app.models.property import PropertyType, TransactionType, DocumentType
 
 
 class PropertySubmission(BaseModel):
-    """مدل برای ثبت آگهی جدید بدون محدودیت سختگیرانه"""
 
-    # اطلاعات اصلی
     title: Optional[str] = None
     property_type: Optional[str] = None
     transaction_type: Optional[str] = None
@@ -18,28 +16,23 @@ class PropertySubmission(BaseModel):
     description: Optional[str] = None
     owner_phone: Optional[str] = None
 
-    # اطلاعات تکمیلی
     bedrooms: Optional[int] = None
     year_built: Optional[int] = None
     floor: Optional[int] = 0
     total_floors: Optional[int] = 0
 
-    # نوع سند
     document_type: Optional[str] = ""
 
-    # امکانات
     has_parking: bool = False
     has_elevator: bool = False
     has_storage: bool = False
     is_renovated: Optional[bool] = False
 
-    # معاوضه
     open_to_exchange: bool = False
     exchange_preferences: Optional[List[str]] = None
 
 
 class SubmissionResponse(BaseModel):
-    """پاسخ ثبت آگهی"""
     success: bool
     message: str
     property_id: Optional[str] = None
@@ -53,7 +46,6 @@ class PropertyStatus(str):
 
 
 class PropertySubmissionWithStatus(PropertySubmission):
-    """آگهی با وضعیت"""
     id: str
     status: str = PropertyStatus.PENDING
     created_at: str

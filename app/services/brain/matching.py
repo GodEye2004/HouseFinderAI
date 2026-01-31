@@ -28,7 +28,7 @@ class ExchangeMatchingService:
             if not prop.open_to_exchange or not prop.exchange_preferences:
                 continue
 
-            # بررسی تطابق نوع آیتم معاوضه
+            # Check the exchange item type for compatibility
             item_match_score = self._calculate_item_match(
                 user_exchange_item,
                 prop.exchange_preferences
@@ -37,13 +37,13 @@ class ExchangeMatchingService:
             if item_match_score == 0:
                 continue
 
-            # بررسی تطابق ارزش
+            # Check value match
             value_match_score = self._calculate_value_match(
                 user_exchange_value,
                 prop.price
             )
 
-            # محاسبه امتیاز کلی تطبیق
+            # Calculate the overall matching score
             total_match_score = (item_match_score * 0.6) + (value_match_score * 0.4)
 
             matches.append({
@@ -56,21 +56,21 @@ class ExchangeMatchingService:
                 "exchange_preferences": prop.exchange_preferences
             })
 
-        # مرتب‌سازی بر اساس امتیاز تطبیق
+        # Sort by match score
         matches.sort(key=lambda x: x["match_score"], reverse=True)
 
         return matches
 
     def _calculate_item_match(self, user_item: str, property_preferences: List[str]) -> float:
         """
-        محاسبه امتیاز تطبیق نوع آیتم
+        Calculate item match score
 
         Returns:
-            امتیاز بین 0 تا 100
+            Score between 0 and 100
         """
         user_item_lower = user_item.lower().strip()
 
-        # کلمات کلیدی برای تطبیق
+        # Keywords for matching
         keywords_map = {
             "ماشین": ["ماشین", "خودرو", "اتومبیل", "car"],
             "خودرو": ["ماشین", "خودرو", "اتومبیل"],
@@ -79,26 +79,26 @@ class ExchangeMatchingService:
             "طلا": ["طلا", "gold", "جواهر"],
         }
 
-        # پیدا کردن کلمات کلیدی مرتبط
+        # Find relevant keywords
         relevant_keywords = set([user_item_lower])
         for key, synonyms in keywords_map.items():
             if any(syn in user_item_lower for syn in synonyms):
                 relevant_keywords.update(synonyms)
 
-        # بررسی تطبیق با ترجیحات ملک
+        # Check against property preferences
         for pref in property_preferences:
             pref_lower = pref.lower().strip()
 
-            # تطبیق دقیق
+            # Exact match
             if user_item_lower in pref_lower or pref_lower in user_item_lower:
                 return 100.0
 
-            # تطبیق با کلمات کلیدی
+            # Check against keywords
             for keyword in relevant_keywords:
                 if keyword in pref_lower:
                     return 80.0
 
-        # تطبیق جزئی
+        # Partial match
         for pref in property_preferences:
             pref_words = set(pref.lower().split())
             user_words = set(user_item_lower.split())
@@ -111,18 +111,18 @@ class ExchangeMatchingService:
 
     def _calculate_value_match(self, user_value: int, property_price: int) -> float:
         """
-        محاسبه امتیاز تطابق ارزش
+        Calculate value match score
 
         Returns:
-            امتیاز بین 0 تا 100
+            Score between 0 and 100
         """
         if property_price == 0:
             return 0.0
 
-        # محاسبه نسبت ارزش
+        # Calculate value ratio
         ratio = user_value / property_price
 
-        # بهترین حالت: ارزش‌ها نزدیک به هم باشند
+        # Best case: values ​​are close to each other
         if 0.8 <= ratio <= 1.2:
             return 100.0
         elif 0.6 <= ratio <= 1.4:
@@ -140,8 +140,7 @@ class ExchangeMatchingService:
             user_value: int,
             property: Property
     ) -> Dict:
-        """ایجاد پیشنهاد معاوضه"""
-
+        """Create a trade offer"""
         price_diff = property.price - user_value
 
         proposal = {

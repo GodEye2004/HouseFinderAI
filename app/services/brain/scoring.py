@@ -4,66 +4,66 @@ import math
 
 
 class PropertyScoringSystem:
-    """سیستم امتیازدهی به املاک بر اساس نیازهای کاربر"""
+    """Real estate scoring system based on user needs"""
 
-    # وزن‌های متغیرها (جمع باید 100 باشد)
+    # Weights for variables (must sum to 100)
     WEIGHTS = {
-        "price": 30,  # الزامی
-        "area": 20,  # الزامی
-        "location": 15,  # الزامی (شهر + منطقه)
-        "property_type": 10,  # الزامی
-        "bedrooms": 10,  # مهم
-        "age": 5,  # مهم
-        "floor": 3,  # اختیاری
-        "parking": 3,  # اختیاری
-        "elevator": 2,  # اختیاری
-        "storage": 1,  # اختیاری
-        "renovated": 1,  # اختیاری
+        "price": 30,  # Required
+        "area": 20,  # Required
+        "location": 15,  # Required (City + District)
+        "property_type": 10,  # Required
+        "bedrooms": 10,  # Important
+        "age": 5,  # Important
+        "floor": 3,  # Optional
+        "parking": 3,  # Optional
+        "elevator": 2,  # Optional
+        "storage": 1,  # Optional
+        "renovated": 1,  # Optional
     }
 
     def __init__(self):
         self.total_weight = sum(self.WEIGHTS.values())
 
     def calculate_score(self, property: Property, requirements: UserRequirements) -> PropertyScore:
-        """محاسبه امتیاز کلی یک ملک"""
+        """Calculate the overall score of a property"""
         scores = {}
         missing = []
 
-        # امتیاز قیمت
+        # Price score
         price_score, price_missing = self._score_price(property, requirements)
         scores["price"] = price_score
         if price_missing:
             missing.append(price_missing)
 
-        # امتیاز متراژ
+        # Area score
         area_score, area_missing = self._score_area(property, requirements)
         scores["area"] = area_score
         if area_missing:
             missing.append(area_missing)
 
-        # امتیاز موقعیت
+        # Location score
         location_score, location_missing = self._score_location(property, requirements)
         scores["location"] = location_score
         if location_missing:
             missing.extend(location_missing)
 
-        # امتیاز نوع ملک
+        # Property type score
         type_score = self._score_property_type(property, requirements)
         scores["property_type"] = type_score
 
-        # امتیاز تعداد اتاق
+        # Bedrooms score
         bedrooms_score = self._score_bedrooms(property, requirements)
         scores["bedrooms"] = bedrooms_score
 
-        # امتیاز سن بنا
+        # Age score
         age_score = self._score_age(property, requirements)
         scores["age"] = age_score
 
-        # امتیاز طبقه
+        # Floor score
         floor_score = self._score_floor(property, requirements)
         scores["floor"] = floor_score
 
-        # امتیاز امکانات
+        # Facilities score
         parking_score = self._score_parking(property, requirements)
         elevator_score = self._score_elevator(property, requirements)
         storage_score = self._score_storage(property, requirements)
@@ -74,7 +74,7 @@ class PropertyScoringSystem:
         scores["storage"] = storage_score
         scores["renovated"] = renovated_score
 
-        # محاسبه امتیاز نهایی
+        # Calculating the final score
         total_score = sum(scores.values())
         match_percentage = (total_score / self.total_weight) * 100
 
@@ -87,30 +87,30 @@ class PropertyScoringSystem:
         )
 
     def _score_price(self, property: Property, req: UserRequirements):
-        """امتیازدهی به قیمت"""
+        """Price scoring"""
         weight = self.WEIGHTS["price"]
 
         if req.budget_min is None and req.budget_max is None:
-            return 0, "بودجه مشخص نشده"
+            return 0, "Budget not specified"
 
         price = property.price
 
-        # اگر فقط حداکثر بودجه داریم
+        # If only maximum budget is specified
         if req.budget_max and req.budget_min is None:
             if price <= req.budget_max:
                 ratio = price / req.budget_max
-                return weight * (1 - ratio * 0.2), None  # هر چه ارزان‌تر، بهتر
+                return weight * (1 - ratio * 0.2), None  # The cheaper, the better
             else:
                 return 0, None
 
-        # اگر فقط حداقل بودجه داریم
+        # If only minimum budget is specified
         if req.budget_min and req.budget_max is None:
             if price >= req.budget_min:
                 return weight, None
             else:
                 return weight * 0.5, None
 
-        # اگر هر دو داریم
+        # If we have both
         if req.budget_min and req.budget_max:
             if req.budget_min <= price <= req.budget_max:
                 mid = (req.budget_min + req.budget_max) / 2
@@ -126,7 +126,7 @@ class PropertyScoringSystem:
         return 0, "بودجه مشخص نشده"
 
     def _score_area(self, property: Property, req: UserRequirements):
-        """امتیازدهی به متراژ"""
+        """Area scoring"""
         weight = self.WEIGHTS["area"]
 
         if req.area_min is None and req.area_max is None:
@@ -157,7 +157,7 @@ class PropertyScoringSystem:
         return weight * 0.5, "متراژ مشخص نشده"
 
     def _score_location(self, property: Property, req: UserRequirements):
-        """امتیازدهی به موقعیت"""
+        """Positional Scoring"""
         weight = self.WEIGHTS["location"]
         missing = []
 
@@ -187,7 +187,7 @@ class PropertyScoringSystem:
                 return 0, []
 
     def _score_property_type(self, property: Property, req: UserRequirements):
-        """امتیازدهی به نوع ملک"""
+        """Scoring by property type"""
         weight = self.WEIGHTS["property_type"]
 
         if req.property_type is None:
@@ -199,7 +199,7 @@ class PropertyScoringSystem:
             return 0
 
     def _score_bedrooms(self, property: Property, req: UserRequirements):
-        """امتیازدهی به تعداد اتاق"""
+        """Bedrooms scoring"""
         weight = self.WEIGHTS["bedrooms"]
 
         if req.bedrooms_min is None or property.bedrooms is None:
@@ -211,7 +211,7 @@ class PropertyScoringSystem:
             return weight * 0.3
 
     def _score_age(self, property: Property, req: UserRequirements):
-        """امتیازدهی به سن بنا"""
+        """Building age scoring"""
         weight = self.WEIGHTS["age"]
 
         if req.max_age is None or property.age is None:
@@ -224,7 +224,7 @@ class PropertyScoringSystem:
             return weight * 0.2
 
     def _score_floor(self, property: Property, req: UserRequirements):
-        """امتیازدهی به طبقه"""
+        """Floor scoring"""
         weight = self.WEIGHTS["floor"]
 
         if req.min_floor is None or property.floor is None:
@@ -236,7 +236,7 @@ class PropertyScoringSystem:
             return weight * 0.3
 
     def _score_parking(self, property: Property, req: UserRequirements):
-        """امتیازدهی به پارکینگ"""
+        """Parking scoring"""
         weight = self.WEIGHTS["parking"]
 
         if req.must_have_parking and property.has_parking:
@@ -249,7 +249,7 @@ class PropertyScoringSystem:
             return weight * 0.5
 
     def _score_elevator(self, property: Property, req: UserRequirements):
-        """امتیازدهی به آسانسور"""
+        """Elevator scoring"""
         weight = self.WEIGHTS["elevator"]
 
         if req.must_have_elevator and property.has_elevator:
@@ -262,16 +262,16 @@ class PropertyScoringSystem:
             return weight * 0.5
 
     def _score_storage(self, property: Property, req: UserRequirements):
-        """امتیازدهی به انباری"""
+        """Storage scoring"""
         weight = self.WEIGHTS["storage"]
         return weight if property.has_storage else weight * 0.5
 
     def _score_renovated(self, property: Property, req: UserRequirements):
-        """امتیازدهی به بازسازی"""
+        """Renovated scoring"""
         weight = self.WEIGHTS["renovated"]
         return weight if property.is_renovated else weight * 0.5
 
     def rank_properties(self, properties: List[Property], requirements: UserRequirements) -> List[PropertyScore]:
-        """رتبه‌بندی املاک"""
+        """Property ranking"""
         scores = [self.calculate_score(prop, requirements) for prop in properties]
         return sorted(scores, key=lambda x: x.total_score, reverse=True)

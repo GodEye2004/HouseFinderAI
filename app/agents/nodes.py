@@ -6,8 +6,7 @@ from app.services.llm_brain.llm_service import RealEstateLLMService
 from app.services.brain.memory_service import ConversationMemory
 from app.services.advertisements.app_property.property_manager import property_manager
 
-
-# ایجاد instance ها
+# creeat instance
 llm_service = RealEstateLLMService()
 decision_engine = DecisionEngine()
 matching_service = ExchangeMatchingService()
@@ -15,8 +14,8 @@ matching_service = ExchangeMatchingService()
 
 def chat_node(state: AgentState) -> AgentState:
     """
-    نود اصلی چت - همه چیز اینجا انجام میشه
-    LLM کنترل کامل رو داره
+   Very simple graph - just a chat node!
+   LLM has full control
     """
 
     if not state["messages"] or len(state["messages"]) == 0:
@@ -30,8 +29,8 @@ def chat_node(state: AgentState) -> AgentState:
     requirements = state["requirements"]
 
     print(f"\n{'=' * 60}")
-    print(f"📨 پیام کاربر: {last_message}")
-    print(f"🧠 حافظه فعلی: {list(memory.facts.keys())}")
+    print(f"user message: {last_message}")
+    print(f"Current memory: {list(memory.facts.keys())}")
 
     # llm undrestanding
     if llm_service.enabled:
@@ -42,19 +41,19 @@ def chat_node(state: AgentState) -> AgentState:
                 state["messages"][:-1]
             )
 
-            print(f"🤖 Intent: {understanding.get('user_intent')}")
-            print(f"📊 Extracted: {understanding.get('extracted_info')}")
+            print(f"Intent: {understanding.get('user_intent')}")
+            print(f"Extracted: {understanding.get('extracted_info')}")
 
             extracted = understanding.get('extracted_info', {})
             user_intent = understanding.get('user_intent', 'chat')
 
             _update_memory_and_requirements(extracted, memory, requirements, state)
 
-            print(f"✅ حافظه بعد آپدیت: {list(memory.facts.keys())}")
+            print(f"memory updated {list(memory.facts.keys())}")
             print(
-                f"✅ Requirements: budget={requirements.budget_max}, city={requirements.city}, type={requirements.property_type}")
+                f"Requirements: budget={requirements.budget_max}, city={requirements.city}, type={requirements.property_type}")
 
-            # ⭐ CRITICAL: تصمیم‌گیری درست
+            # CRITICAL: currect decision
             should_search = _should_search(memory)
             
             if extracted.get('wants_exchange') or state.get("wants_exchange"):
@@ -62,25 +61,25 @@ def chat_node(state: AgentState) -> AgentState:
                     not (memory.get_fact('exchange_value') or extracted.get('exchange_value')):
                      should_search = False
 
-            print(f"🔍 آیا باید جستجو کنم؟ {should_search}")
+            print(f"should i search? {should_search}")
 
             if should_search and (user_intent == 'search' or len(extracted) > 0):
-                print("🎯 در حال جستجو...")
+                print("searching.....")
                 state = _perform_search(state, memory, requirements)
             elif user_intent == 'exchange' or state.get("wants_exchange"):
-                print("🔄 در حال پردازش معاوضه...")
+                print("exchange processing....")
                 state = _handle_exchange(state, memory)
             else:
-                print("💬 ادامه گفتگو و دریافت اطلاعات...")
+                print("continue conversation and give infornation")
                 state = _generate_chat_response(state, memory, last_message)
 
         except Exception as e:
-            print(f"❌ خطا در پردازش LLM: {e}")
+            print(f"error in llm processing: {e}")
             _simple_extraction(last_message, memory, requirements)
             state = _generate_chat_response_fallback(state, memory, last_message)
             
     else:
-        print("⚠️ LLM غیرفعال - استفاده از fallback")
+        print("llm disable use fallback")
         _simple_extraction(last_message, memory, requirements)
         state = _generate_chat_response_fallback(state, memory, last_message)
 
@@ -88,13 +87,13 @@ def chat_node(state: AgentState) -> AgentState:
     state["memory"] = memory
     state["needs_user_input"] = True
 
-    print(f"📤 پاسخ: {state['next_message'][:100]}...")
+    print(f"answere: {state['next_message'][:100]}...")
     print(f"{'=' * 60}\n")
 
     return state
 
 def _simple_extraction(text: str, memory: ConversationMemory, requirements: UserRequirements):
-    """استخراج ساده بر اساس کلمات کلیدی برای زمانی که LLM کار نمی‌کند"""
+    """simple keyword based extraction for when llm is not working"""
     text = text.lower()
     
     if "آپارتمان" in text:
@@ -118,7 +117,7 @@ def _simple_extraction(text: str, memory: ConversationMemory, requirements: User
             requirements.city = city
             break
             
-    # نوع معامله
+    # transaction type
     if "اجاره" in text or "رهن" in text:
         memory.add_fact('transaction_type', "اجاره")
         requirements.transaction_type = TransactionType.RENT
@@ -133,13 +132,13 @@ def _simple_extraction(text: str, memory: ConversationMemory, requirements: User
 
 def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
                                     requirements: UserRequirements, state: AgentState):
-    """آپدیت حافظه و requirements بر اساس اطلاعات استخراج شده"""
+    """update memory and requirements based on extracted information"""
 
     for key, value in extracted.items():
         if value is not None and value != "":
             memory.add_fact(key, value)
 
-            # آپدیت requirements
+            # update requirements
             if hasattr(requirements, key):
                 if key == 'property_type' and isinstance(value, str):
                     type_map = {
@@ -180,7 +179,7 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
                     setattr(requirements, key, value)
                     print(f"   ✓ {key} = {value}")
 
-    # بررسی معاوضه
+    # check transaction type
     if extracted.get('wants_exchange'):
         state["wants_exchange"] = True
         memory.add_fact('wants_exchange', True)
@@ -193,64 +192,65 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
             state["exchange_value"] = extracted['exchange_value']
 
     # ---------------------------------------------------------
-    # محاسبه قدرت خرید کل (بودجه نقد + ارزش معاوضه)
+    # calculate total purchasing power (cash budget + exchange value)
     # ---------------------------------------------------------
-    # آیا معاوضه داریم؟
+    # do we have transaction?
     is_exchanging = state.get("wants_exchange") or extracted.get("wants_exchange") or memory.get_fact("wants_exchange")
     
     if is_exchanging:
-        # بودجه نقد (از اکسترکت جدید یا حافظه)
+        # cash budget (from new statement or memory)
         cash_budget = extracted.get('budget_max')
         if not cash_budget:
             cash_budget = memory.get_fact('budget_max')
             
-        # ارزش معاوضه (از اکسترکت جدید یا حافظه)
+        # exchange value (from new extract memory)
         exchange_val = extracted.get('exchange_value')
         if not exchange_val:
             exchange_val = memory.get_fact('exchange_value')
             
-        # اگر هر دو را داریم، جمع بزن
+        # iffwe have both , add the up +
         if cash_budget and exchange_val:
             total_budget = int(cash_budget) + int(exchange_val)
             requirements.budget_max = total_budget
-            print(f"   💰 بودجه کل محاسبه شده: {cash_budget:,} (نقد) + {exchange_val:,} (معاوضه) = {total_budget:,} تومان")
+            print(f"total calculate budget : {cash_budget:,} (cash) + {exchange_val:,} (exchange) = {total_budget:,} toman")
 
 
 def _should_search(memory: ConversationMemory) -> bool:
     """
-    تصمیم‌گیری خودکار: آیا باید جستجو کنیم؟
+    we automate decision making => should i search?
     """
-    # بررسی فیلدهای الزامی
+    
+    # check require fileds
     has_budget = memory.get_fact('budget_max') is not None
     has_city = memory.get_fact('city') is not None
     has_type = memory.get_fact('property_type') is not None
     has_area = memory.get_fact('area_min') is not None
     has_transaction = memory.get_fact('transaction_type') is not None
 
-    print(f"   بودجه: {has_budget}")
-    print(f"    شهر: {has_city}")
-    print(f"   نوع: {has_type}")
-    print(f"    معامله: {has_transaction}")
-    print(f"    متراژ: {has_area}")
+    print(f"   budget: {has_budget}")
+    print(f"   city: {has_city}")
+    print(f"   type: {has_type}")
+    print(f"    transaction: {has_transaction}")
+    print(f"    area(pre meter): {has_area}")
 
-    # اگر کاربر درخواست جستجو کرده (در intent)، که در نود چک می‌شود
-    # اینجا فقط تصمیم می‌گیریم آیا "بدون درخواست صریح" جستجو کنیم یا نه
+    # if the user has requested a search (in intent), wich is checked in node
+    # here we just decide whether to search "without explicit request" or not
 
-    # اگر فقط شهر و نوع معامله را داریم، هنوز جستجو نکن تا بقیه سوالات را بپرسیم
+    # if we only have city and transaction type, dont search yet until we ask the rest of the question.
     if has_city and has_transaction and not (has_budget or has_area):
         return False
 
-    # اگر شهر، نوع معامله و (بودجه یا متراژ) را داریم، جستجو کن
+    # if we have the city, type og transaction , and (budget or squar footage), start search.
     if has_city and has_transaction and (has_budget or has_area):
         return True
     
-    # حالت‌های قدیمی برای پشتیبانی
+    # old school for cover
     important_fields = [has_budget, has_city, has_type, has_transaction, has_area]
     count = sum(important_fields)
 
-    print(f"   📊 تعداد فیلدهای پر شده: {count}/5")
+    print(f"number of fields filled : {count}/5")
 
-    # اگر شهر را نداریم اما 3 مورد دیگر را داریم
+    # if we dont have the city but we have the order 3 things
     if count >= 3 and not has_city:
         return True
 
@@ -259,24 +259,24 @@ def _should_search(memory: ConversationMemory) -> bool:
 
 def _perform_search(state: AgentState, memory: ConversationMemory,
                     requirements: UserRequirements) -> AgentState:
-    """انجام جستجو و نمایش نتایج"""
+    """start search and show result"""
 
     all_properties = property_manager.get_all_properties()
 
-    print(f"   📦 تعداد کل املاک: {len(all_properties)}")
+    print(f"all properties :  {len(all_properties)}")
 
-    # جستجو با موتور تصمیم
+    # search with decision engin
     decision_result = decision_engine.make_decision(all_properties, requirements)
 
     state["search_results"] = decision_result.get("properties", [])
     state["decision_summary"] = decision_result.get("decision_summary", {})
     state["recommendations"] = decision_result.get("recommendations", [])
 
-    print(f"   ✅ نتایج: {len(state['search_results'])} ملک")
-    print(f"   📊 وضعیت: {decision_result['status']}")
+    print(f"result: {len(state['search_results'])} ملک")
+    print(f"status: {decision_result['status']}")
 
     if decision_result["status"] == "need_more_info":
-        # اگر اطلاعات کافی نبود، بپرس
+        # if infornation not enough, ask
         missing = decision_result.get("missing_fields", [])
         if "city" in missing:
             state["next_message"] = "لطفا شهر مورد نظر را بفرمایید."
@@ -285,7 +285,7 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
         state["current_stage"] = "need_info"
         return state
 
-    # تولید پاسخ با LLM
+    # create answer with llm(with llm we talk to user)
     if decision_result["status"] == "no_results":
         context = {
             'stage': 'no_results',
@@ -303,7 +303,7 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
         else:
             state["next_message"] = "متاسفانه ملک مناسبی پیدا نشد 😔"
     else:
-        # موفقیت - نمایش نتایج
+        # success , show result
         results = state["search_results"][:3]
         properties_data = []
 
@@ -332,7 +332,7 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                     "phone": prop.owner_phone,
                 })
 
-        # LLM نتایج رو فرمت می‌کنه
+        # llm format result
         if llm_service.enabled:
             formatted = llm_service.format_search_results(properties_data, memory)
             if formatted:
@@ -347,19 +347,19 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
 
 
 def _handle_exchange(state: AgentState, memory: ConversationMemory) -> AgentState:
-    """مدیریت معاوضه"""
+    """managing exchange"""
 
     exchange_item = memory.get_fact('exchange_item')
     exchange_value = memory.get_fact('exchange_value')
 
-    # اگر مقدار جدیدی در استیت بود، اون رو هم چک کن (برای آپدیت لحظه‌ای)
+    #  if we have new thing in state , check it (for update it real time)
     if state.get("exchange_value"):
          exchange_value = state["exchange_value"]
 
-    print(f"   🔄 آیتم معاوضه: {exchange_item}")
-    print(f"   💵 ارزش: {exchange_value}")
+    print(f"item for excheange: {exchange_item}")
+    print(f"value: {exchange_value}")
 
-    # اگر اطلاعات کامل نیست، LLM می‌پرسه
+    # when the information not enough , we ask with llm
     if not exchange_item or not exchange_value:
         if llm_service.enabled:
             state["next_message"] = llm_service.handle_exchange_conversation(
@@ -375,7 +375,7 @@ def _handle_exchange(state: AgentState, memory: ConversationMemory) -> AgentStat
         state["current_stage"] = "exchange_info_needed"
         return state
 
-    # جستجوی املاک قابل معاوضه
+    # search exchange properties
     exchange_properties = property_manager.get_exchange_properties()
 
     matches = matching_service.find_exchange_matches(
@@ -385,9 +385,9 @@ def _handle_exchange(state: AgentState, memory: ConversationMemory) -> AgentStat
     )
 
     state["exchange_matches"] = matches
-    print(f"   ✅ تطابق‌های پیدا شده: {len(matches)}")
+    print(f"find matches : {len(matches)}")
 
-    # تولید پاسخ با LLM
+    # generate answere with llm
     if matches:
         matches_data = []
         for match in matches[:3]:
@@ -438,23 +438,20 @@ def _handle_exchange(state: AgentState, memory: ConversationMemory) -> AgentStat
 
 def _generate_chat_response_fallback(state: AgentState, memory: ConversationMemory,
                                      user_message: str) -> AgentState:
-    """fallback هوشمند بدون LLM - گفتگوی ساده ولی کاربردی"""
+    """talk simple but informative to user with out llm , use it when llm not working"""
 
     user_lower = user_message.lower()
 
-    # سلام و خوشامد
     if any(word in user_lower for word in ['سلام', 'hi', 'hello']):
         state["next_message"] = "سلام! خوش اومدید 👋\nدنبال چه نوع ملکی می‌گردید؟ (آپارتمان، ویلا، مغازه)"
         state["current_stage"] = "chatting"
         return state
 
-    # بررسی اطلاعات موجود
     has_type = memory.get_fact('property_type')
     has_city = memory.get_fact('city')
     has_budget = memory.get_fact('budget_max')
     has_trans = memory.get_fact('transaction_type')
 
-    # اگر نوع معامله یا نوع ملک مشخص نیست
     if not has_type and not has_trans:
         state["next_message"] = "دنبال خرید هستید یا اجاره؟ و چه نوع ملکی؟ (آپارتمان، ویلا...)"
     
@@ -474,7 +471,6 @@ def _generate_chat_response_fallback(state: AgentState, memory: ConversationMemo
         state["next_message"] = "چه نوع ملکی مد نظرتونه؟ (آپارتمان، ویلا، مغازه)"
         
     else:
-        # اطلاعات کافی داریم
         state["next_message"] = "اطلاعات خوبی دارم. می‌تونم برات جستجو کنم؟"
 
     state["current_stage"] = "chatting"
@@ -482,9 +478,9 @@ def _generate_chat_response_fallback(state: AgentState, memory: ConversationMemo
 
 def _generate_chat_response(state: AgentState, memory: ConversationMemory,
                             user_message: str) -> AgentState:
-    """تولید پاسخ گفتگوی طبیعی"""
+    """generatt nlp answere"""
 
-    # LLM کنترل کامل رو داره
+    # llm has full controll
     context = {
         'stage': 'chatting',
         'has_enough_info': _should_search(memory),
@@ -498,7 +494,7 @@ def _generate_chat_response(state: AgentState, memory: ConversationMemory,
             conversation_history=state["messages"]
         )
     else:
-        # fallback ساده
+        # fallback simple
         if not memory.get_fact('budget_max'):
             state["next_message"] = "بودجه‌ت چقدره؟"
         elif not memory.get_fact('city'):
@@ -512,14 +508,12 @@ def _generate_chat_response(state: AgentState, memory: ConversationMemory,
     return state
 
 def _simple_chat_fallback(state: AgentState, user_message: str) -> AgentState:
-    """fallback خیلی ساده"""
     state["next_message"] = "سلام! چطور می‌تونم کمکت کنم؟ دنبال چه نوع ملکی می‌گردی؟"
     state["current_stage"] = "chatting"
     return state
 
 
 def _format_simple(properties: list) -> str:
-    """فرمت ساده نتایج"""
     if not properties:
         return "متاسفانه ملکی پیدا نشد."
 

@@ -30,76 +30,76 @@ class Property(BaseModel):
     property_type: PropertyType
     transaction_type: TransactionType
 
-    # متغیرهای الزامی (وزن بالا)
+    # Required variables (high weight)
     price: int = Field(..., description="قیمت به تومان")
     area: int = Field(..., description="متراژ به متر مربع")
     city: str
     district: str
 
-    # متغیرهای مهم (وزن متوسط)
+    # Important variables (average weight)
     bedrooms: Optional[int] = None
     year_built: Optional[int] = Field(None, description="سال ساخت (شمسی)")
     floor: Optional[int] = None
     total_floors: Optional[int] = None
 
-    # نوع سند
+    # Document type
     document_type: Optional[DocumentType] = None
 
-    # متغیرهای اختیاری (وزن پایین)
+    # Optional variables (low weight)
     has_parking: bool = False
     has_elevator: bool = False
     has_storage: bool = False
     is_renovated: bool = False
 
-    # اطلاعات معاوضه
+    # exchange details
     open_to_exchange: bool = False
     exchange_preferences: Optional[List[str]] = Field(
         default=None,
         description="چیزهایی که مایل به معاوضه است مثل ماشین، ملک دیگر"
     )
 
-    # اطلاعات تماس
+    
     owner_phone: str
     description: str
 
     @property
     def age(self) -> Optional[int]:
-        """محاسبه سن بنا"""
+        """calculate age of buildeing"""
         if self.year_built:
             from datetime import datetime
-            current_year = 1403  # سال جاری شمسی
+            current_year = 1403  # convert to shamsi
             return current_year - self.year_built
         return None
 
 
 class UserRequirements(BaseModel):
-    # الزامی
+    # require
     budget_min: Optional[int] = None
     budget_max: Optional[int] = None
     property_type: Optional[PropertyType] = None
     transaction_type: Optional[TransactionType] = None
 
-    # مهم
+    # Important
     area_min: Optional[int] = None
     area_max: Optional[int] = None
     city: Optional[str] = None
     district: Optional[str] = None
     bedrooms_min: Optional[int] = None
 
-    # سال ساخت
-    year_built_min: Optional[int] = None  # حداقل سال ساخت
+    # year of build
+    year_built_min: Optional[int] = None  
 
-    # نوع سند
+    
     document_type: Optional[DocumentType] = None
 
-    # اختیاری
+    # Optional
     max_age: Optional[int] = None
     min_floor: Optional[int] = None
     must_have_parking: bool = False
     must_have_elevator: bool = False
     must_have_storage: bool = False
 
-    # معاوضه
+    # exchange details
     has_exchange_item: bool = False
     exchange_item_type: Optional[str] = None
     exchange_item_value: Optional[int] = None
@@ -111,4 +111,4 @@ class PropertyScore(BaseModel):
     score_details: dict
     match_percentage: float
     missing_requirements: List[str] = []
-    decision_reasons: List[str] = []  # دلایل تصمیم موتور
+    decision_reasons: List[str] = []  # Reasons for the engine decision

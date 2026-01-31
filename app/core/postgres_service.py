@@ -18,7 +18,7 @@ class PostgresService:
         return cls._instance
 
     def _initialize_pool(self):
-        """ایجاد connection pool"""
+        """create connection pool"""
         self.db_config = {
             "host": os.environ.get("DB_HOST", "localhost"),
             "port": os.environ.get("DB_PORT", 5433),
@@ -29,7 +29,7 @@ class PostgresService:
 
     @contextmanager
     def get_connection(self):
-        """Context manager برای مدیریت اتصالات"""
+        """Context manager for managing connections"""
         conn = None
         try:
             conn = psycopg2.connect(**self.db_config, cursor_factory=RealDictCursor)
@@ -42,7 +42,7 @@ class PostgresService:
                 conn.close()
 
     def insert(self, table: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """درج رکورد جدید"""
+        """Insert new record"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 columns = ', '.join(data.keys())
@@ -59,7 +59,7 @@ class PostgresService:
 
     def select(self, table: str, columns: str = "*", filters: Dict[str, Any] = None,
                limit: int = None, offset: int = None) -> List[Dict[str, Any]]:
-        """خواندن رکوردها"""
+        """read new records"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 where_clause = ""
@@ -79,7 +79,7 @@ class PostgresService:
                 return cursor.fetchall()
 
     def update(self, table: str, property_id: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """به‌روزرسانی رکورد"""
+        """Update record"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 set_clause = ', '.join([f"{k} = %s" for k in data.keys()])
@@ -96,7 +96,7 @@ class PostgresService:
                 return result
 
     def delete(self, table: str, property_id: str) -> bool:
-        """حذف رکورد"""
+        """Delete record"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 query = f"DELETE FROM {table} WHERE id = %s"
@@ -105,7 +105,7 @@ class PostgresService:
                 return cursor.rowcount > 0
 
     def execute_raw(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
-        """اجرای کوئری دلخواه"""
+        """Execute raw query"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(query, params or ())
@@ -115,7 +115,7 @@ class PostgresService:
                 return []
 
     def test_connection(self) -> bool:
-        """تست ساده اتصال به دیتابیس"""
+        """Test database connection"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1 AS ok;")
@@ -123,5 +123,5 @@ class PostgresService:
                 return result["ok"] == 1
 
 
-# ایجاد instance از سرویس
+# create instance from postgres service
 postgres_service = PostgresService()

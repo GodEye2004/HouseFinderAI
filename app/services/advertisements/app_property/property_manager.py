@@ -262,19 +262,19 @@ class PropertyManager:
         )
 
     def get_all_properties(self) -> List[Property]:
-        """get all amlac like object if approved"""
+        """get all properties like object if approved"""
         submissions = self.get_all_submissions(status=PropertyStatus.APPROVED)
         return [self.convert_to_property(s) for s in submissions]
 
     def get_property_by_id(self, property_id: str) -> Optional[Property]:
-        """get amlac with id"""
+        """get properties with id"""
         submission = self.get_submission(property_id)
         if submission:
             return self.convert_to_property(submission)
         return None
 
     def get_exchange_properties(self) -> List[Property]:
-        """get amlac ready for exchange"""
+        """get properties ready for exchange"""
         try:
             # use filter for better performance
             results = database_service.select(
@@ -339,7 +339,7 @@ class PropertyManager:
         limit: int = 50,
         offset: int = 0
     ) -> List[PropertySubmissionWithStatus]:
-        """جستجوی پیشرفته در املاک"""
+        """Advanced Property Search"""
         try:
             # creat filter
             filters = {"status": "تایید_شده"}

@@ -9,62 +9,62 @@ import operator
 class AgentState(TypedDict):
     """State برای مدیریت گفتگو با کاربر"""
 
-    # پیام‌های گفتگو
+    # conversation message
     messages: Annotated[List[dict], operator.add]
 
-    # حافظه مکالمه (جدید!)
+    # memmory of conversation (new)
     memory: ConversationMemory
 
-    # نیازهای کاربر
+    # user requirements
     requirements: UserRequirements
 
-    # مرحله فعلی گفتگو
+    # current conversation
     current_stage: str
 
-    # فیلدهای ناقص
+    # missing fields
     missing_fields: List[str]
 
-    # نتایج جستجو
+    # search resulrt
     search_results: Optional[List[PropertyScore]]
 
-    # خلاصه تصمیم موتور
+    # summart of decision engin
     decision_summary: Optional[Dict]
 
-    # توصیه‌های موتور
+    # engin recommendation
     recommendations: Optional[List[str]]
 
-    # آیا کاربر مایل به معاوضه است؟
+    #  if user want's to exchange
     wants_exchange: bool
 
-    # اطلاعات معاوضه
+    # exchange information
     exchange_item: Optional[str]
     exchange_value: Optional[int]
 
-    # املاک پیشنهادی معاوضه
+    # exchange property matches , ready for exchange
     exchange_matches: Optional[List[dict]]
 
-    # آیا نیاز به ورودی کاربر داریم؟
+    # user input for recive new information
     needs_user_input: bool
 
-    # پیام بعدی سیستم
+    # next system message
     next_message: str
 
 
-# فیلدهای الزامی که باید حتما از کاربر پرسیده شوند
+# Required fields that must be asked from the user
 REQUIRED_FIELDS = {
     "budget_max": "بودجه حداکثر",
     "property_type": "نوع ملک",
     "city": "شهر",
 }
 
-# فیلدهای مهم که ترجیحا باید پرسیده شوند
+# Important fields that should be asked preferably
 IMPORTANT_FIELDS = {
     "area_min": "حداقل متراژ",
     "district": "منطقه",
     "bedrooms_min": "تعداد اتاق خواب",
 }
 
-# فیلدهای اختیاری
+# Optional fields
 OPTIONAL_FIELDS = {
     "max_age": "حداکثر سن بنا",
     "min_floor": "حداقل طبقه",

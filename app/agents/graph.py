@@ -9,8 +9,9 @@ from app.services.brain.memory_service import ConversationMemory
 
 def create_agent_graph():
     """
-    گراف خیلی ساده - فقط یه نود چت!
-    LLM کنترل کامل رو داره
+    Very simple graph - just a chat node!
+    LLM has full control 
+    
     """
 
     workflow = StateGraph(AgentState)
@@ -24,7 +25,7 @@ def create_agent_graph():
 
 
 def initialize_state(session_id: str) -> AgentState:
-    """ایجاد state با حافظه"""
+    """Create state with memory"""
     return AgentState(
         messages=[],
         memory=ConversationMemory(),

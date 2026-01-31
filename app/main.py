@@ -6,7 +6,6 @@ from app.models.user import ChatRequest, ChatResponse
 from app.agents.graph import create_agent_graph, initialize_state
 from app.agents.state import AgentState
 from app.services.advertisements.app_property import property_manager
-# from app.services import property_manager
 from app.services.advertisements.app_property.property_manager import PropertyManager
 from app.services.brain.memory_service import ConversationMemory
 from typing import Dict
@@ -14,14 +13,13 @@ import uuid
 from app.services.advertisements.divar_property.divar_api import divar_router
 from app.services.advertisements.app_property.property_manager import property_manager
 
-# ما از property_manager که در ماژول اینستنس شده استفاده میکنیم
-# manager = PropertyManager() رو حذف میکنیم تا دوگانگی پیش نیاد
+# Initialize property manager for divar properties
 manager = property_manager
 
 app = FastAPI(
-    title="مشاور املاک هوشمند با حافظه",
-    description="سیستم مشاوره املاک با LLM یکپارچه و حافظه کامل",
-    version="2.0.0"
+    title="real state agent with memory",
+    description="Real estate consulting system with integrated LLM and full memory",
+    version="1.0.0"
 )
 
 app.include_router(divar_router)
@@ -38,19 +36,19 @@ app.add_middleware(
 
 from app.services.llm_brain.persistence import save_sessions, load_sessions
 
-# ذخیره session ها
+# save session
 sessions: Dict[str, AgentState] = load_sessions()
 
-# گراف
+# graph
 agent_graph = create_agent_graph()
 
 
 @app.get("/")
 def read_root():
-    """صفحه اصلی"""
+    """Main page"""
     return {
         "message": "🏡 سیستم مشاور املاک هوشمند با حافظه",
-        "version": "2.0.0",
+        "version": "1.0.0",
         "features": [
             "حافظه کامل مکالمه",
             "فهم طبیعی زبان فارسی",
@@ -62,31 +60,31 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """بررسی سلامت"""
+    """Health check"""
     return {
         "status": "healthy",
         "sessions_count": len(sessions),
-        "llm_enabled": True  # چک کردن LLM
+        "llm_enabled": True  # check llm exist
     }
 
 
 @app.post("/session/new")
 def create_new_session():
-    """ایجاد session جدید"""
+    """create new session"""
     session_id = str(uuid.uuid4())
     sessions[session_id] = initialize_state(session_id)
 
     return {
         "session_id": session_id,
-        "message": "Session با حافظه جدید ایجاد شد"
+        "message": "create session with new history"
     }
 
 
 @app.get("/session/{session_id}")
 def get_session(session_id: str):
-    """دریافت اطلاعات session"""
+    """get session information"""
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session پیدا نشد")
+        raise HTTPException(status_code=404, detail="Session not found")
 
     state = sessions[session_id]
     memory = state["memory"]
@@ -104,9 +102,9 @@ def get_session(session_id: str):
 
 @app.get("/session/{session_id}/memory")
 def get_session_memory(session_id: str):
-    """دریافت حافظه کامل"""
+    """get full memory"""
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session پیدا نشد")
+        raise HTTPException(status_code=404, detail="Session not found")
 
     memory = sessions[session_id]["memory"]
 
@@ -120,10 +118,10 @@ def get_session_memory(session_id: str):
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    چت اصلی - LLM کنترل کامل رو داره
+    main chat , llm has full controll
     """
 
-    # ایجاد یا دریافت session
+    # creat or recive session
     if not request.session_id or request.session_id not in sessions:
         session_id = str(uuid.uuid4())
         sessions[session_id] = initialize_state(session_id)
@@ -133,26 +131,26 @@ async def chat(request: ChatRequest):
 
     current_state = sessions[session_id]
 
-    # اضافه کردن پیام کاربر
+    # add user message
     current_state["messages"].append({
         "role": "user",
         "content": request.message
     })
 
-    # اجرای گراف (همیشه از chat_node می‌گذره)
+    # run graph(always use chat_node)
     result = agent_graph.invoke(current_state)
 
-    # آپدیت state
+    # update state
     sessions[session_id] = result
     save_sessions(sessions)
 
-    # اضافه کردن پاسخ به تاریخچه
+    # add response to history
     result["messages"].append({
         "role": "assistant",
         "content": result["next_message"]
     })
 
-    # ساخت پاسخ
+    # creat answere
     response = ChatResponse(
         response=result["next_message"],
         session_id=session_id,
@@ -161,7 +159,7 @@ async def chat(request: ChatRequest):
         state=result["current_stage"]
     )
 
-    # املاک پیشنهادی
+    # Suggested properties
     if result.get("search_results"):
 
         recommended = []
@@ -186,17 +184,17 @@ async def chat(request: ChatRequest):
 
 @app.delete("/session/{session_id}")
 def delete_session(session_id: str):
-    """حذف session"""
+    """delete session"""
     if session_id in sessions:
         del sessions[session_id]
-        return {"message": "Session حذف شد"}
+        return {"message": "Session deleted"}
     else:
-        raise HTTPException(status_code=404, detail="Session پیدا نشد")
+        raise HTTPException(status_code=404, detail="Session not found")
 
 
 @app.get("/properties")
 def get_properties():
-    """دریافت لیست املاک"""
+    """get list of properties"""
     from app.models.property_submission import PropertyStatus
     
     properties = property_manager.get_all_properties()
@@ -242,8 +240,8 @@ async def delete_property(property_id: str):
 
 @app.patch("/properties/{property_id}")
 async def update_property(property_id: str, updates: Dict):
-    """آپدیت جزییات ملک"""
-    # فقط اجازه‌ی آپدیت فیلدهای خاص رو میدیم
+    """Update property details"""
+    # We only allow updates to specific fields.
     allowed_fields = ["exchange_preferences", "open_to_exchange", "price", "description"]
     
     clean_updates = {k: v for k, v in updates.items() if k in allowed_fields}

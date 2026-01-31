@@ -4,19 +4,19 @@ from datetime import datetime
 
 class ConversationMemory:
     """
-    سیستم حافظه مکالمه
-    هر چیزی که کاربر بگه رو به خاطر می‌سپاره
+    Conversation memory system
+    Remembers everything the user says
     """
 
     def __init__(self):
-        self.facts: Dict[str, any] = {}  # حقایق استخراج شده
-        self.preferences: Dict[str, any] = {}  # ترجیحات کاربر
-        self.conversation_context: List[Dict] = []  # متن کامل مکالمه
-        self.entities_mentioned: Dict[str, List] = {}  # موجودیت‌های ذکر شده
-        self.timeline: List[Dict] = []  # تایم‌لاین مکالمه
+        self.facts: Dict[str, any] = {}  # Extracted facts
+        self.preferences: Dict[str, any] = {}  # User preferences
+        self.conversation_context: List[Dict] = []  # Full conversation text
+        self.entities_mentioned: Dict[str, List] = {}  # Mentioned entities
+        self.timeline: List[Dict] = []  # Conversation timeline
 
     def add_fact(self, key: str, value: any, confidence: float = 1.0):
-        """اضافه کردن یک حقیقت به حافظه"""
+        """Add a fact to memory"""
         self.facts[key] = {
             'value': value,
             'confidence': confidence,
@@ -32,13 +32,13 @@ class ConversationMemory:
         })
 
     def get_fact(self, key: str) -> Optional[any]:
-        """دریافت یک حقیقت"""
+        """Get a fact from memory"""
         if key in self.facts:
             return self.facts[key]['value']
         return None
 
     def add_entity(self, entity_type: str, entity_value: str):
-        """اضافه کردن موجودیت (مثل "طلا"، "ماشین")"""
+        """Add an entity (e.g. "gold", "car")"""
         if entity_type not in self.entities_mentioned:
             self.entities_mentioned[entity_type] = []
 
@@ -46,24 +46,24 @@ class ConversationMemory:
             self.entities_mentioned[entity_type].append(entity_value)
 
     def has_mentioned(self, entity_type: str, entity_value: str = None) -> bool:
-        """آیا موجودیت خاصی ذکر شده؟"""
+        """Has a specific entity been mentioned?"""
         if entity_value:
             return entity_value in self.entities_mentioned.get(entity_type, [])
         return entity_type in self.entities_mentioned
 
     def get_all_entities(self, entity_type: str) -> List[str]:
-        """دریافت تمام موجودیت‌های یک نوع"""
+        """Get all entities of a specific type"""
         return self.entities_mentioned.get(entity_type, [])
 
     def update_preference(self, key: str, value: any):
-        """آپدیت ترجیحات"""
+        """Update preferences"""
         self.preferences[key] = value
 
     def get_summary(self) -> str:
-        """خلاصه‌ای از حافظه برای LLM"""
-        summary = "📋 خلاصه مکالمه تا الان:\n"
+        """Summary of memory for LLM"""
+        summary = "Conversation summary so far:\n"
 
-        # حقایق مهم
+        # Important facts
         if 'budget_max' in self.facts:
             budget = self.facts['budget_max']['value'] / 1_000_000_000
             summary += f"- بودجه: {budget} میلیارد تومان\n"
@@ -86,7 +86,7 @@ class ConversationMemory:
         if 'document_type' in self.facts:
             summary += f"- نوع سند: {self.facts['document_type']['value']}\n"
 
-        # امکانات
+        # Facilities
         facilities = []
         if self.facts.get('must_have_parking', {}).get('value'):
             facilities.append("پارکینگ")
@@ -98,7 +98,7 @@ class ConversationMemory:
         if facilities:
             summary += f"- امکانات الزامی: {', '.join(facilities)}\n"
 
-        # معاوضه
+        # exchange
         if 'exchange_item' in self.facts:
             item = self.facts['exchange_item']['value']
             summary += f"- مایل به معاوضه: بله ({item})\n"
@@ -110,7 +110,7 @@ class ConversationMemory:
         return summary if len(summary) > 30 else "هنوز اطلاعات زیادی نداریم."
 
     def to_dict(self) -> Dict:
-        """تبدیل به دیکشنری برای ذخیره"""
+        """Convert to dictionary for storage"""
         return {
             'facts': self.facts,
             'preferences': self.preferences,
@@ -120,7 +120,7 @@ class ConversationMemory:
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'ConversationMemory':
-        """بازیابی از دیکشنری"""
+        """Reconstruct from dictionary"""
         memory = cls()
         memory.facts = data.get('facts', {})
         memory.preferences = data.get('preferences', {})

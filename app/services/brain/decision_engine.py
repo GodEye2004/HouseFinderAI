@@ -7,8 +7,8 @@ from app.services.advertisements.app_property.property_manager import property_m
 
 class DecisionEngine:
     """
-    موتور تصمیم‌گیری اصلی
-    همه تصمیمات در اینجا گرفته می‌شود، نه توسط LLM
+    Main decision-making engine
+    All decisions are made here, not by the LLM
     """
 
     def __init__(self):
@@ -20,7 +20,7 @@ class DecisionEngine:
             requirements: UserRequirements
     ) -> Dict:
         """
-        تصمیم‌گیری کامل و بازگشت نتایج ساختاری
+        Make a decision based on the properties and user requirements.
 
         Returns:
             {
@@ -32,7 +32,7 @@ class DecisionEngine:
             }
         """
 
-        # مرحله 1: بررسی کفایت اطلاعات
+        # Step 1: Checking the adequacy of information
         missing_critical = self._check_missing_critical_info(requirements)
         if missing_critical:
             return {
@@ -43,34 +43,34 @@ class DecisionEngine:
                 'recommendations': []
             }
 
-        # مرحله 2: فیلتر کردن املاک (تصمیمات سخت)
+        # Step 2: Filtering properties (hard decisions)
         filtered_properties, filters_applied = self._apply_hard_filters(
             properties,
             requirements
         )
 
-        # مرحله 2: فیلتر کردن املاک (تصمیمات سخت)
+        
         filtered_properties, filters_applied = self._apply_hard_filters(
             properties,
             requirements
         )
 
-        # مرحله 3: امتیازدهی به املاک (تصمیمات نرم)
+        # Step 3: Scoring properties (soft decisions)
         if not filtered_properties:
             # ----------------------------------------------------------------
-            # جستجوی هوشمند: اگر در شهر مقصد نبود، شهرهای دیگر را چک کن
+            # Smart Search: If not found in destination city, check other cities
             # ----------------------------------------------------------------
             if filters_applied.get('city'):
-                print("   🌍 جستجو در سایر شهرها...")
-                # کپی از requirements بدون شهر
+                print("search in other city")
+                # Copy of requirements without city
                 relaxed_req = requirements.copy()
                 relaxed_req.city = None
-                
-                # فیلتر مجدد بدون شهر
+
+                # Re-filter without city
                 global_props, _ = self._apply_hard_filters(properties, relaxed_req)
                 
                 if global_props:
-                    # پیدا شد!
+                    #find best match
                     scored_global = self.scoring_system.rank_properties(global_props, relaxed_req)
                     best_global = scored_global[0] if scored_global else None
                     
@@ -104,13 +104,13 @@ class DecisionEngine:
                 )
             }
 
-        # امتیازدهی
+        # scoring
         scored_properties = self.scoring_system.rank_properties(
             filtered_properties,
             requirements
         )
 
-        # مرحله 4: تحلیل نتایج و تولید توصیه‌ها
+        # Step 4: Analyzing results and generating recommendations
         decision_summary = self._create_decision_summary(
             properties,
             filtered_properties,
@@ -133,10 +133,10 @@ class DecisionEngine:
         }
 
     def _check_missing_critical_info(self, req: UserRequirements) -> List[str]:
-        """بررسی اطلاعات حیاتی"""
+        """Check for missing critical information"""
         missing = []
 
-        # فقط شهر الزامی است تا بتوانیم لیست بدهیم
+        # Only city is mandatory to provide a list
         if req.city is None:
             missing.append('city')
             
@@ -148,8 +148,8 @@ class DecisionEngine:
             req: UserRequirements
     ) -> Tuple[List[Property], Dict]:
         """
-        فیلترهای سخت (حذف کامل)
-        اینجا تصمیمات قاطع گرفته می‌شود
+        Hard Filters (Complete Removal)
+        This is where the hard decisions are made
         """
 
         filters_applied = {
@@ -168,7 +168,7 @@ class DecisionEngine:
 
         filtered = properties
 
-        # فیلتر نوع معامله (الزامی)
+        # Transaction Type Filter (Required)
         if req.transaction_type:
             filtered = [
                 p for p in filtered
@@ -176,14 +176,14 @@ class DecisionEngine:
             ]
             filters_applied['transaction_type'] = True
 
-        # فیلتر بودجه (با تلرانس 10%)
+        # Budget Filter (with 10% tolerance)
         if req.budget_max:
-            # اجازه می‌دهیم تا 10% بیشتر از بودجه را هم نشان دهیم
+            # Allow up to 10% more than the budget
             budget_tolerance = int(req.budget_max * 1.1)
             filtered = [p for p in filtered if p.price <= budget_tolerance]
             filters_applied['budget'] = True
 
-        # فیلتر شهر (الزامی)
+        # City Filter (Required)
         if req.city:
             target_city = req.city.strip().lower()
             filtered = [
@@ -192,7 +192,7 @@ class DecisionEngine:
             ]
             filters_applied['city'] = True
 
-        # فیلتر منطقه (اگر مشخص شده)
+        # Region filter (if specified)
         if req.district:
             filtered = [
                 p for p in filtered
@@ -200,7 +200,7 @@ class DecisionEngine:
             ]
             filters_applied['district'] = True
 
-        # فیلتر نوع ملک (اختیاری - فقط اگر کاربر مشخص کرده)
+        # Property Type Filter (Optional - Only if specified by user)
         if req.property_type:
             filtered = [
                 p for p in filtered
@@ -208,20 +208,20 @@ class DecisionEngine:
             ]
             filters_applied['property_type'] = True
 
-        # فیلتر متراژ (با تلرانس)
+        # Area Filter (with tolerance)
         if req.area_min:
-            # اجازه می‌دهیم تا 20 متر کمتر از حداقل را هم نشان دهیم
+            # Allow up to 20 sqm less than the minimum
             area_tolerance = max(0, req.area_min - 20)
             filtered = [p for p in filtered if p.area >= area_tolerance]
             filters_applied['area'] = True
             
         if req.area_max:
-            # اجازه می‌دهیم تا 20 متر بیشتر از حداکثر را هم نشان دهیم
+            # Allow up to 20 sqm more than the maximum
             area_max_tolerance = req.area_max + 20
             filtered = [p for p in filtered if p.area <= area_max_tolerance]
             filters_applied['area'] = True
 
-        # فیلتر سال ساخت
+        # Year Built Filter
         if req.year_built_min:
             filtered = [
                 p for p in filtered
@@ -229,7 +229,7 @@ class DecisionEngine:
             ]
             filters_applied['year_built'] = True
 
-        # فیلتر نوع سند
+        # Document type filter
         if req.document_type:
             filtered = [
                 p for p in filtered
@@ -237,7 +237,7 @@ class DecisionEngine:
             ]
             filters_applied['document_type'] = True
 
-        # فیلترهای امکانات الزامی
+        # Required feature filters
         if req.must_have_parking:
             filtered = [p for p in filtered if p.has_parking]
             filters_applied['must_have_parking'] = True
@@ -260,16 +260,16 @@ class DecisionEngine:
             filters_applied: Dict,
             requirements: UserRequirements
     ) -> Dict:
-        """ساخت خلاصه تصمیم"""
+        """Building a Decision Summary"""
 
-        # تعداد املاک حذف شده در هر مرحله
+        # Number of properties removed at each stage
         filters_stats = {}
         temp_props = all_properties
 
         for filter_name, applied in filters_applied.items():
             if applied:
                 before_count = len(temp_props)
-                # شبیه‌سازی فیلتر برای آمار
+                # Apply filter for stats
                 temp_props = self._apply_single_filter(
                     temp_props,
                     filter_name,
@@ -281,7 +281,7 @@ class DecisionEngine:
                     'remaining': after_count
                 }
 
-        # بهترین و بدترین تطابق
+        # Best and worst match
         best_match = scored_properties[0] if scored_properties else None
         worst_match = scored_properties[-1] if scored_properties else None
 
@@ -301,7 +301,7 @@ class DecisionEngine:
             scored_properties: List[PropertyScore],
             requirements: UserRequirements
     ) -> List[str]:
-        """تولید توصیه‌های موتور تصمیم"""
+        """Generating recommendations from the decision engine"""
 
         recommendations = []
 
@@ -310,7 +310,7 @@ class DecisionEngine:
 
         best = scored_properties[0]
 
-        # توصیه بر اساس امتیاز
+        # Recommendations based on score
         if best.match_percentage >= 90:
             recommendations.append("ملک شماره 1 تطابق فوق‌العاده‌ای با نیاز شما دارد")
         elif best.match_percentage >= 75:
@@ -338,7 +338,7 @@ class DecisionEngine:
                     elif price_ratio > 0.95:
                         recommendations.append("املاک نزدیک به سقف بودجه شما هستند")
 
-        # توصیه بر اساس تعداد نتایج
+        # Recommendation based on number of results
         if len(scored_properties) < 3:
             recommendations.append("تعداد نتایج کم است، شاید بتوان معیارها را کمی انعطاف‌پذیرتر کرد")
         elif len(scored_properties) > 10:
@@ -351,7 +351,7 @@ class DecisionEngine:
             requirements: UserRequirements,
             filters_applied: Dict
     ) -> List[str]:
-        """پیشنهاد کاهش محدودیت‌ها"""
+        """Generating relaxation suggestions"""
 
         suggestions = []
 
