@@ -1,11 +1,9 @@
 import os
 import random
 from datetime import datetime, timedelta
-
 from fastapi import HTTPException
 from dotenv import load_dotenv
 from kavenegar import KavenegarAPI, APIException
-
 from app.core import postgres_service
 from app.services.auth.access_token import create_access_token
 from app.core.postgres_service import postgres_service
@@ -36,6 +34,11 @@ def send_otp(phone_number: str):
 
     # rate limit
     recent = postgres_service.execute_raw(
+        """
+        SELECT 1 FROM otp_codes
+        WHERE phone_number = %s
+        AND created_at > now() - interval '60 seconds'
+        """,
         (phone_number,),
     )
 
@@ -56,6 +59,14 @@ def send_otp(phone_number: str):
 
 def verify_otp(phone_number: str, code: str) -> str:
     otp = postgres_service.execute_raw(
+        """
+        SELECT * FROM otp_codes
+        WHERE phone_number = %s
+        AND code = %s
+        AND used = FALSE
+        AND expires_at > %s
+        LIMIT 1
+        """,
         (phone_number, code, datetime.utcnow()),
     )
 
@@ -63,6 +74,7 @@ def verify_otp(phone_number: str, code: str) -> str:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     postgres_service.execute_raw(
+        "UPDATE otp_codes SET used = TRUE WHERE id = %s",
         (otp[0]["id"],),
     )
 
