@@ -1,19 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.models.property_submission import PropertySubmission
-from app.models.user import ChatRequest, ChatResponse
-from app.agents.graph import create_agent_graph, initialize_state
 from app.agents.state import AgentState
-from app.services.advertisements.app_property import property_manager
-from app.services.advertisements.app_property.property_manager import PropertyManager
-from app.services.brain.memory_service import ConversationMemory
 from typing import Dict
-import uuid
 from app.services.advertisements.divar_property.divar_api import divar_router
-from app.services.advertisements.app_property.property_manager import property_manager
-from app.routers import session, chat, properties
-from app.services.llm_brain.persistence import save_sessions, load_sessions
+from app.routers import send_otp, session, chat, properties, verify_otp
+from app.services.llm_brain.persistence import load_sessions
 
 
 app = FastAPI(
@@ -25,7 +16,6 @@ app = FastAPI(
 app.include_router(divar_router)
 
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +25,6 @@ app.add_middleware(
 )
 
 
-# save session
 sessions: Dict[str, AgentState] = load_sessions()
 
 
@@ -43,7 +32,7 @@ sessions: Dict[str, AgentState] = load_sessions()
 def read_root():
     """Main page"""
     return {
-        "message": "🏡 سیستم مشاور املاک هوشمند با حافظه",
+        "message": "سیستم مشاور املاک هوشمند با حافظه",
         "version": "1.0.0",
         "features": [
             "حافظه کامل مکالمه",
@@ -67,6 +56,8 @@ def health_check():
 app.include_router(chat.router, tags=["chat"])
 app.include_router(session.router, tags=["session"])
 app.include_router(properties.router, tags=["properties"])
+app.include_router(verify_otp.router, tags=["auth"])
+app.include_router(send_otp.router, tags=["auth"])
 
 
 if __name__ == "__main__":
