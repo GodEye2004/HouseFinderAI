@@ -1,4 +1,4 @@
-from app.models.property import Property, UserRequirements, PropertyScore
+from app.models.property import Property, UserRequirements, PropertyScore, TransactionType
 from typing import List, Dict, Tuple
 from app.services.brain.scoring import PropertyScoringSystem
 from app.services.advertisements.app_property.property_manager import property_manager
@@ -136,8 +136,9 @@ class DecisionEngine:
         """Check for missing critical information"""
         missing = []
 
-        # Only city is mandatory to provide a list
-        if req.city is None:
+        # If user specifies a district or transaction type (especially exchange), 
+        # we can proceed even without a city (global search)
+        if req.city is None and not (req.district or req.transaction_type):
             missing.append('city')
             
         return missing
@@ -163,17 +164,31 @@ class DecisionEngine:
             'document_type': False,
             'must_have_parking': False,
             'must_have_elevator': False,
-            'must_have_storage': False
+            'must_have_storage': False,
+            'must_be_exchange': False
         }
 
         filtered = properties
 
+        # Exchange filter
+        if req.wants_exchange:
+            filtered = [p for p in filtered if p.open_to_exchange]
+            filters_applied['must_be_exchange'] = True
+
         # Transaction Type Filter (Required)
         if req.transaction_type:
-            filtered = [
-                p for p in filtered
-                if p.transaction_type == req.transaction_type
-            ]
+            # If user wants exchange, we also allow "SALE" properties that are open to exchange
+            if req.wants_exchange:
+                filtered = [
+                    p for p in filtered
+                    if p.transaction_type == req.transaction_type or 
+                       (p.transaction_type == TransactionType.SALE and p.open_to_exchange)
+                ]
+            else:
+                filtered = [
+                    p for p in filtered
+                    if p.transaction_type == req.transaction_type
+                ]
             filters_applied['transaction_type'] = True
 
         # Budget Filter (with 10% tolerance)

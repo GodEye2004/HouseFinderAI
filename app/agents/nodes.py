@@ -64,11 +64,18 @@ def chat_node(state: AgentState) -> AgentState:
             print(f"should i search? {should_search}")
 
             if should_search and (user_intent == 'search' or len(extracted) > 0):
+                # If it's an exchange search, go here
                 print("searching.....")
                 state = _perform_search(state, memory, requirements)
-            elif user_intent == 'exchange' or state.get("wants_exchange"):
+            elif (user_intent == 'exchange' or state.get("wants_exchange")) and \
+                 (memory.get_fact('exchange_item') or extracted.get('exchange_item')):
+                # Only go to deal handling if we have something to exchange
                 print("exchange processing....")
                 state = _handle_exchange(state, memory)
+            elif user_intent == 'exchange' or state.get("wants_exchange"):
+                 # Force search for exchanges if no deal info provided
+                 print("proactive exchange search....")
+                 state = _perform_search(state, memory, requirements)
             else:
                 print("continue conversation and give infornation")
                 state = _generate_chat_response(state, memory, last_message)
@@ -178,6 +185,16 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
                 else:
                     setattr(requirements, key, value)
                     print(f"   ✓ {key} = {value}")
+            
+            # Special case for wants_exchange boolean
+            if key == 'wants_exchange' and isinstance(value, bool):
+                requirements.wants_exchange = value
+                print(f"   ✓ wants_exchange = {value}")
+            
+            # Handle district specifically if it wasn't handled by AttributeError check
+            if key == 'district':
+                requirements.district = value
+                print(f"   ✓ district = {value}")
 
     # check transaction type
     if extracted.get('wants_exchange'):
@@ -233,8 +250,14 @@ def _should_search(memory: ConversationMemory) -> bool:
     print(f"    transaction: {has_transaction}")
     print(f"    area(pre meter): {has_area}")
 
-    # if the user has requested a search (in intent), wich is checked in node
-    # here we just decide whether to search "without explicit request" or not
+    # If the user explicitly asks for exchanges, be PROACTIVE and search even with missing info
+    wants_exchange = memory.get_fact('wants_exchange')
+    if wants_exchange:
+        return True
+
+    # If the user specifies a district, it's a strong intent to search
+    if memory.get_fact('district'):
+        return True
 
     # if we only have city and transaction type, dont search yet until we ask the rest of the question.
     if has_city and has_transaction and not (has_budget or has_area):
@@ -321,6 +344,9 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                     "price": prop.price,
                     "price_formatted": f"{prop.price:,} تومان",
                     "area": prop.area,
+                    "vpm": prop.vpm,
+                    "vpm_formatted": f"{prop.vpm:,} تومان/متر" if prop.vpm else None,
+                    "units": prop.units,
                     "location": f"{prop.city}، {prop.district}",
                     "match_percentage": score.match_percentage,
                     "bedrooms": prop.bedrooms,
@@ -330,6 +356,9 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                     "has_elevator": prop.has_elevator,
                     "has_storage": prop.has_storage,
                     "phone": prop.owner_phone,
+                    "source_link": prop.source_link,
+                    "image_url": prop.image_url,
+                    "description": prop.description,
                 })
 
         # llm format result
@@ -451,6 +480,7 @@ def _generate_chat_response_fallback(state: AgentState, memory: ConversationMemo
     has_city = memory.get_fact('city')
     has_budget = memory.get_fact('budget_max')
     has_trans = memory.get_fact('transaction_type')
+    has_area = memory.get_fact('area_min')
 
     if not has_type and not has_trans:
         state["next_message"] = "دنبال خرید هستید یا اجاره؟ و چه نوع ملکی؟ (آپارتمان، ویلا...)"

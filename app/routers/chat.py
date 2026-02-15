@@ -5,7 +5,7 @@ import app
 from app.agents.graph import create_agent_graph, create_agent_graph, initialize_state
 from app.agents.state import AgentState
 from app.models.user import ChatRequest, ChatResponse
-from app.services.advertisements.app_property import property_manager
+from app.services.advertisements.app_property.property_manager import property_manager
 from app.services.llm_brain.persistence import load_sessions, save_sessions
 
 sessions: Dict[str, AgentState] = load_sessions()
@@ -66,7 +66,12 @@ async def chat(request: ChatRequest):
                         "title": prop.title,
                         "price": prop.price,
                         "area": prop.area,
+                        "vpm": prop.vpm,
+                        "units": prop.units,
                         "location": f"{prop.city}، {prop.district}",
+                        "image_url": prop.image_url,
+                        "source_link": prop.source_link,
+                        "description": prop.description,
                         "match_percentage": score.match_percentage,
                         "score": score.total_score,
                     }

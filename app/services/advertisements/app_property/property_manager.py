@@ -259,19 +259,121 @@ class PropertyManager:
             exchange_preferences=submission.exchange_preferences,
             owner_phone=submission.owner_phone or "",
             description=submission.description or "",
+            # New fields
+            vpm=(submission.price // submission.area) if (submission.price and submission.area) else None,
+            units=getattr(submission, 'units', None),
+            source_link=getattr(submission, 'source_link', None),
+            image_url=getattr(submission, 'image_url', None),
         )
 
     def get_all_properties(self) -> List[Property]:
-        """get all properties like object if approved"""
+        """get all properties from local DB and Divar DB if approved"""
+        # 1. Fetch from internal properties table
         submissions = self.get_all_submissions(status=PropertyStatus.APPROVED)
-        return [self.convert_to_property(s) for s in submissions]
+        internal_props = [self.convert_to_property(s) for s in submissions]
+        
+        # 2. Fetch from Divar data table
+        divar_props = self.get_divar_properties()
+        
+        # 3. Combine both
+        return internal_props + divar_props
+
+    def get_divar_properties(self) -> List[Property]:
+        """Fetch properties from the divar_data table."""
+        try:
+            records = database_service.select("divar_data", limit=500) # Increase limit to find more exchanges
+            properties = []
+            for r in records:
+                properties.append(self._map_divar_record_to_property(r))
+            return properties
+        except Exception as e:
+            print(f"Error fetching Divar properties: {e}")
+            return []
 
     def get_property_by_id(self, property_id: str) -> Optional[Property]:
-        """get properties with id"""
+        """get properties with id (supports local UUIDs and divar_ prefixed IDs)"""
+        if property_id.startswith("divar_"):
+            # Fetch from Divar data
+            try:
+                raw_id = property_id.replace("divar_", "")
+                records = database_service.select("divar_data", filters={"id": int(raw_id)})
+                if records:
+                    # Reuse mapping logic (Refactoring this into a helper would be better, but let's fix first)
+                    r = records[0]
+                    # ... [Mapping Logic] ...
+                    # Actually, I'll extract a helper method to avoid duplication
+                    return self._map_divar_record_to_property(r)
+            except Exception as e:
+                print(f"Error fetching Divar property by ID: {e}")
+            return None
+        
+        # Original logic for local properties
         submission = self.get_submission(property_id)
         if submission:
             return self.convert_to_property(submission)
         return None
+
+    def _map_divar_record_to_property(self, r: Dict) -> Property:
+        """Helper to map a single Divar DB record to Property model."""
+        try:
+            raw_type = r.get("property_type")
+            prop_type = PropertyType(raw_type) if raw_type else PropertyType.APARTMENT
+        except:
+            prop_type = PropertyType.APARTMENT
+        
+        try:
+            raw_trans = r.get("transaction_type")
+            trans_type = TransactionType(raw_trans) if raw_trans else TransactionType.SALE
+        except:
+            trans_type = TransactionType.SALE
+
+        try:
+            raw_doc = r.get("document_type")
+            doc_type = DocumentType(raw_doc) if raw_doc else None
+        except:
+            doc_type = None
+
+        return Property(
+            id=f"divar_{r.get('id')}",
+            title=r.get("title") or "آگهی دیوار",
+            property_type=prop_type,
+            transaction_type=trans_type,
+            price=int(r.get("price") or 0),
+            area=int(r.get("area") or 0),
+            city=r.get("city") or "نامشخص",
+            district=r.get("district") or "نامشخص",
+            bedrooms=r.get("bedrooms"),
+            year_built=r.get("year_built"),
+            floor=r.get("floor"),
+            total_floors=r.get("total_floors"),
+            document_type=doc_type,
+            has_parking=bool(r.get("has_parking", False)),
+            has_elevator=bool(r.get("has_elevator", False)),
+            has_storage=bool(r.get("has_storage", False)),
+            is_renovated=bool(r.get("is_renovated", False)),
+            open_to_exchange=self._detect_exchange_intent(r),
+            exchange_preferences=json.loads(r.get("exchange_preferences")) if r.get("exchange_preferences") and r.get("exchange_preferences").startswith("[") else [],
+            owner_phone="دیوار",
+            description=r.get("description") or "",
+            # New fields from Divar
+            vpm=int(r.get("vpm") or 0) if r.get("vpm") else None,
+            units=r.get("units"),
+            source_link=r.get("source_link"),
+            image_url=r.get("image_url"),
+        )
+    def _detect_exchange_intent(self, r: Dict) -> bool:
+        """Helper to detect exchange intent from divar record fields."""
+        # 1. Check direct flag (the 'tick')
+        if bool(r.get("open_to_exchange", False)):
+            return True
+        
+        # 2. Check description for keywords
+        description = r.get("description", "") or ""
+        keywords = ['معاوضه', 'طاق', 'تعویض', 'قابل معاوضه', 'معاوضه با']
+        if any(w in description for w in keywords):
+            return True
+            
+        return False
 
     def get_exchange_properties(self) -> List[Property]:
         """get properties ready for exchange"""
@@ -285,7 +387,13 @@ class PropertyManager:
                 }
             )
             submissions = [self._map_db_to_submission(item) for item in results]
-            return [self.convert_to_property(s) for s in submissions]
+            internal_props = [self.convert_to_property(s) for s in submissions]
+            
+            # 2. Add Divar exchange properties
+            divar_props = self.get_divar_properties()
+            divar_exchange = [p for p in divar_props if p.open_to_exchange]
+            
+            return internal_props + divar_exchange
         except Exception as e:
             print(f" error to get reday to exchange amlac :  {e}")
             return []

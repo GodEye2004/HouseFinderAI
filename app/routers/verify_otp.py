@@ -4,7 +4,7 @@ from app.services.auth.send_otp import verify_otp
 
 
 router = APIRouter()
-
+    
 
 @router.post("/verify-otp")
 def verify_otp_route(data: VerifyOtpSchema):

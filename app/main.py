@@ -42,7 +42,7 @@ def read_root():
             "معاوضه هوشمند",
         ],
     }
-
+ 
 
 @app.get("/health")
 def health_check():

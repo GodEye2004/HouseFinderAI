@@ -62,6 +62,12 @@ class Property(BaseModel):
     owner_phone: str
     description: str
 
+    # Add extra fields for better data integration
+    vpm: Optional[int] = Field(None, description="قیمت هر متر")
+    units: Optional[int] = Field(None, description="تعداد واحد")
+    source_link: Optional[str] = Field(None, description="لینک آگهی اصلی")
+    image_url: Optional[str] = Field(None, description="لینک تصویر آگهی")
+
     @property
     def age(self) -> Optional[int]:
         """calculate age of buildeing"""
@@ -103,6 +109,7 @@ class UserRequirements(BaseModel):
     has_exchange_item: bool = False
     exchange_item_type: Optional[str] = None
     exchange_item_value: Optional[int] = None
+    wants_exchange: bool = False
 
 
 class PropertyScore(BaseModel):
