@@ -25,8 +25,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.services.llm_brain.persistence import load_sessions, sessions
 
-sessions: Dict[str, AgentState] = load_sessions()
+# Shared sessions are already loaded in chat router,
+# but we can ensure they are available here too.
+# sessions: Dict[str, AgentState] = load_sessions()
 
 
 @app.get("/")

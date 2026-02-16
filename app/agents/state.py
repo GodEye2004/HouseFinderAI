@@ -49,6 +49,9 @@ class AgentState(TypedDict):
     # next system message
     next_message: str
 
+    # Context for LLM analysis of shown properties
+    shown_properties_context: Optional[List[dict]]
+
 
 # Required fields that must be asked from the user
 REQUIRED_FIELDS = {

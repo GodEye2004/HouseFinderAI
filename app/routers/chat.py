@@ -1,32 +1,69 @@
 import uuid
-from fastapi import APIRouter
+from typing import Optional
+from fastapi import APIRouter, Depends, Header
 from gotrue import Dict
 import app
-from app.agents.graph import create_agent_graph, create_agent_graph, initialize_state
+from app.agents.graph import initialize_state
 from app.agents.state import AgentState
 from app.models.user import ChatRequest, ChatResponse
 from app.services.advertisements.app_property.property_manager import property_manager
-from app.services.llm_brain.persistence import load_sessions, save_sessions
+from app.services.llm_brain.persistence import load_sessions, save_sessions, sessions, agent_graph
+from app.services.auth.access_token import get_current_user
 
-sessions: Dict[str, AgentState] = load_sessions()
-agent_graph = create_agent_graph()
+# Helper to make authentication optional for chat
+async def get_current_user_optional(current_user: Optional[dict] = Depends(get_current_user)):
+    return current_user
+
+# Note: Since get_current_user raises HTTPException, we might need a custom one for optional.
+# Alternatively, we can check for the Authorization header manually.
+# For now, let's keep it simple: if the user passes a token, we use it. 
+# If they don't, they need to pass a session_id.
+
+# Initial load of sessions at startup
+shared_sessions_loaded = load_sessions()
+sessions.update(shared_sessions_loaded)
 
 router = APIRouter()
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     """
     main chat , llm has full controll
     """
+    from app.services.auth.access_token import decode_access_token, get_user_by_id
 
-    # creat or recive session
-    if not request.session_id or request.session_id not in sessions:
+    user_session_id = None
+    
+    # 1. Try to get session from Auth Header
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        payload = decode_access_token(token)
+        if payload and "sub" in payload:
+            user = get_user_by_id(payload["sub"])
+            if user:
+                # Fixed session ID for this user
+                user_session_id = f"user_{user['id']}"
+    
+    # 2. Determine which session_id to use
+    session_id = user_session_id or request.session_id
+
+    # 3. Create or receive session
+    if not session_id:
         session_id = str(uuid.uuid4())
         sessions[session_id] = initialize_state(session_id)
         save_sessions(sessions)
-    else:
-        session_id = request.session_id
+    elif session_id not in sessions:
+        # Try to reload from file
+        reloaded = load_sessions()
+        sessions.update(reloaded)
+        
+        if session_id not in sessions:
+            # Still not found, create new
+            sessions[session_id] = initialize_state(session_id)
+            save_sessions(sessions)
+    
+    # Use the session_id we finalized
 
     current_state = sessions[session_id]
 
@@ -56,8 +93,18 @@ async def chat(request: ChatRequest):
     if result.get("search_results"):
 
         recommended = []
-        for score in result["search_results"][:5]:
-            prop = property_manager.get_property_by_id(score.property_id)
+        for item in result["search_results"][:5]:
+            # Handle both object and dict access (since persistence might return dicts)
+            if hasattr(item, "property_id"):
+                prop_id = item.property_id
+                match_pct = item.match_percentage
+                total_score = item.total_score
+            else:
+                prop_id = item.get("property_id")
+                match_pct = item.get("match_percentage")
+                total_score = item.get("total_score")
+                
+            prop = property_manager.get_property_by_id(prop_id)
 
             if prop:
                 recommended.append(
@@ -72,8 +119,8 @@ async def chat(request: ChatRequest):
                         "image_url": prop.image_url,
                         "source_link": prop.source_link,
                         "description": prop.description,
-                        "match_percentage": score.match_percentage,
-                        "score": score.total_score,
+                        "match_percentage": match_pct,
+                        "score": total_score,
                     }
                 )
 

@@ -1,5 +1,3 @@
-
-
 from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
 from app.agents.nodes import chat_node
@@ -40,5 +38,6 @@ def initialize_state(session_id: str) -> AgentState:
         exchange_value=None,
         exchange_matches=None,
         needs_user_input=True,
-        next_message=""
+        next_message="",
+        shown_properties_context=None
     )

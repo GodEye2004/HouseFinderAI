@@ -29,8 +29,8 @@ def chat_node(state: AgentState) -> AgentState:
     requirements = state["requirements"]
 
     print(f"\n{'=' * 60}")
-    print(f"user message: {last_message}")
-    print(f"Current memory: {list(memory.facts.keys())}")
+    print(f"user message received")
+    print(f"Current memory keys: {list(memory.facts.keys())}")
 
     # llm undrestanding
     if llm_service.enabled:
@@ -51,7 +51,7 @@ def chat_node(state: AgentState) -> AgentState:
 
             print(f"memory updated {list(memory.facts.keys())}")
             print(
-                f"Requirements: budget={requirements.budget_max}, city={requirements.city}, type={requirements.property_type}")
+                f"Requirements updated for city: {requirements.city is not None}")
 
             # CRITICAL: currect decision
             should_search = _should_search(memory)
@@ -60,8 +60,6 @@ def chat_node(state: AgentState) -> AgentState:
                  if not (memory.get_fact('exchange_item') or extracted.get('exchange_item')) or \
                     not (memory.get_fact('exchange_value') or extracted.get('exchange_value')):
                      should_search = False
-
-            print(f"should i search? {should_search}")
 
             if should_search and (user_intent == 'search' or len(extracted) > 0):
                 # If it's an exchange search, go here
@@ -81,7 +79,11 @@ def chat_node(state: AgentState) -> AgentState:
                 state = _generate_chat_response(state, memory, last_message)
 
         except Exception as e:
-            print(f"error in llm processing: {e}")
+            print(f"Error in LLM processing: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Ensure we fallback to rule-based extraction and response
             _simple_extraction(last_message, memory, requirements)
             state = _generate_chat_response_fallback(state, memory, last_message)
             
@@ -94,7 +96,7 @@ def chat_node(state: AgentState) -> AgentState:
     state["memory"] = memory
     state["needs_user_input"] = True
 
-    print(f"answere: {state['next_message'][:100]}...")
+    print(f"answer sent")
     print(f"{'=' * 60}\n")
 
     return state
@@ -229,7 +231,7 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
         if cash_budget and exchange_val:
             total_budget = int(cash_budget) + int(exchange_val)
             requirements.budget_max = total_budget
-            print(f"total calculate budget : {cash_budget:,} (cash) + {exchange_val:,} (exchange) = {total_budget:,} toman")
+            print(f"total calculate budget updated")
 
 
 def _should_search(memory: ConversationMemory) -> bool:
@@ -295,7 +297,7 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
     state["decision_summary"] = decision_result.get("decision_summary", {})
     state["recommendations"] = decision_result.get("recommendations", [])
 
-    print(f"result: {len(state['search_results'])} ملک")
+    print(f"result: {len(state['search_results'])} properties")
     print(f"status: {decision_result['status']}")
 
     if decision_result["status"] == "need_more_info":
@@ -361,15 +363,12 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                     "description": prop.description,
                 })
 
-        # llm format result
-        if llm_service.enabled:
-            formatted = llm_service.format_search_results(properties_data, memory)
-            if formatted:
-                state["next_message"] = formatted
-            else:
-                state["next_message"] = _format_simple(properties_data)
-        else:
-            state["next_message"] = _format_simple(properties_data)
+        # Context for AI to analyze what user is seeing
+        state["shown_properties_context"] = properties_data
+
+        # Always use rule-based formatting for advertisements per user request.
+        # This ensures consistent listing/cards in the Flutter UI.
+        state["next_message"] = _format_simple(properties_data)
 
     state["current_stage"] = "results_shown"
     return state
@@ -436,15 +435,8 @@ def _handle_exchange(state: AgentState, memory: ConversationMemory) -> AgentStat
             'matches': matches_data
         }
 
-        if llm_service.enabled:
-            state["next_message"] = llm_service.generate_natural_response(
-                context=context,
-                user_message="املاک معاوضه",
-                memory=memory,
-                conversation_history=state["messages"]
-            )
-        else:
-            state["next_message"] = _format_exchange_simple(matches_data)
+        # Always use rule-based formatting for exchange advertisements.
+        state["next_message"] = _format_exchange_simple(matches_data)
     else:
         context = {
             'stage': 'no_exchange_match',
@@ -521,7 +513,8 @@ def _generate_chat_response(state: AgentState, memory: ConversationMemory,
             context=context,
             user_message=user_message,
             memory=memory,
-            conversation_history=state["messages"]
+            conversation_history=state["messages"],
+            shown_properties=state.get("shown_properties_context")
         )
     else:
         # fallback simple

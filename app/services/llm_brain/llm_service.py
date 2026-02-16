@@ -1,4 +1,5 @@
 import os
+import time
 from openai import OpenAI
 from typing import List, Dict, Optional
 import json
@@ -36,7 +37,7 @@ class RealEstateLLMService:
             user_intent = "exchange"
         elif any(w in user_message for w in ["سلام", "درود", "خسته نباشید"]):
             user_intent = "greeting"
-        elif "?" in user_message or "چرا" in user_message or "چطور" in user_message:
+        elif any(w in user_message for w in ["?", "؟", "چرا", "چطور", "چگونه", "کدام", "نظر"]):
             user_intent = "question"
 
         # If we extracted significant data via regex, we can skip LLM for extraction
@@ -71,7 +72,8 @@ class RealEstateLLMService:
             context: Dict,
             user_message: str,
             memory: ConversationMemory,
-            conversation_history: List[Dict]
+            conversation_history: List[Dict],
+            shown_properties: Optional[List[Dict]] = None
     ) -> str:
         """
         تولید پاسخ کاملا طبیعی - LLM کنترل کامل داره
@@ -85,7 +87,7 @@ class RealEstateLLMService:
 
         # fix prompt as a state.
         if stage == 'chatting':
-            system_prompt = self._get_chat_prompt(memory_summary, context)
+            system_prompt = self._get_chat_prompt(memory_summary, context, shown_properties)
         elif stage == 'no_results':
             system_prompt = self._get_no_results_prompt(memory_summary, context)
         elif stage == 'exchange_results':
@@ -107,17 +109,20 @@ class RealEstateLLMService:
                 "content": user_message
             })
 
+            start_time = time.time()
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=0.8,
-                max_tokens=500
+                max_tokens=600  # Increased slightly for better natural flow
             )
+            duration = time.time() - start_time
+            print(f"LLM Response Time (natural_response): {duration:.2f}s")
 
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"خطا در تولید پاسخ (LLM Fallback Triggered): {e}")
+            print(f"Error in natural_response: {e}")
             return self._generate_rule_based_response(context, memory)
 
     def _generate_rule_based_response(self, context: Dict, memory: ConversationMemory) -> str:
@@ -148,8 +153,8 @@ class RealEstateLLMService:
             
         return "در خدمتم! چه سوال دیگه‌ای در مورد املاک دارید؟ ✨"
 
-    def _get_chat_prompt(self, memory_summary: str, context: Dict) -> str:
-        """پرامپت برای گفتگوی عادی"""
+    def _get_chat_prompt(self, memory_summary: str, context: Dict, shown_properties: Optional[List[Dict]] = None) -> str:
+        """پرامپت برای گفتگوی عادی و تحلیل املاک"""
 
         has_enough_info = context.get('has_enough_info', False)
 
@@ -165,6 +170,9 @@ class RealEstateLLMService:
 وضعیت فعلی:
 {"اطلاعات کافی برای جستجو داری - لطفاً پیشنهاد جستجو بده یا اگر مطمئنی خودت جستجو را شروع کن" if has_enough_info else "نیاز به اطلاعات بیشتر داری"}
 
+املاک نمایش داده شده به کاربر (در صورت وجود):
+{json.dumps(shown_properties, ensure_ascii=False) if shown_properties else "هیچ ملکی هنوز نمایش داده نشده است"}
+
 دستورالعمل مهم:
 - اگر شهر و نوع معامله (خرید/اجاره) مشخص شد ولی "قیمت"، "متراژ" یا "وضعیت معاوضه" مشخص نیست:
   حتما بپرس: "چه بودجه‌ای در نظر دارید؟ چه متراژی؟ و اینکه آیا مایل به معاوضه هستید؟"
@@ -174,6 +182,11 @@ class RealEstateLLMService:
 مثال خوب:
 "خب پس برای خرید در تهران دنبال ملک هستی. چقدر بودجه در نظر گرفتی؟ و اینکه متراژ خاصی مد نظرت هست؟"
 "راستی، اگر ملکی برای معاوضه داری هم بهم بگو!"
+
+تحلیل املاک (بسیار مهم):
+- اگر کاربر درباره املاک نمایش داده شده سوال پرسید (مثلاً "نظرت چیه؟" یا "کدوم بهتره؟")، حتماً با استفاده از لیست "املاک نمایش داده شده" بالا، آن‌ها را تحلیل کن.
+- به ویژگی‌های مثبت و منفی هر کدام اشاره کن (مثلاً قیمت مناسب، لوکیشن عالی، یا متراژ کم).
+- سعی کن کاربر را برای انتخاب بهتر راهنمایی کنی.
 
 مثال بد:
 "فیلدهای زیر را پر کنید."
@@ -293,19 +306,19 @@ class RealEstateLLMService:
 {json.dumps(properties, ensure_ascii=False)}
 
 راهنما:
+- **بسیار مهم**: هر ملک رو با کاراکترهای "==================================================" از هم جدا کن (مثل خروجی کلاسیک).
 - هر ملک رو با یه ایموجی و عنوان جذاب شروع کن
-- **بسیار مهم**: قیمت هر متر (vpm_formatted) و تعداد واحد (units) رو اگه در دیتا بود بگو
-- **بسیار مهم**: اگه فیلد source_link وجود داشت، در انتهای معرفی اون ملک بگو: "برای جزییات بیشتر و عکس‌ها می‌تونی اینجا رو ببینی: لینک آگهی" و لینک رو هم بذار.
-- نکات مثبت رو برجسته کن
-- اگه ملک دقیقا مطابق با خواسته‌هاست، با هیجان بگو
-- اگه کمی فرق داره، صادقانه بگو ولی مزایاش رو هم بگو
-- شماره تماس رو در آخر هر ملک بگو
-- **بسیار مهم**: اگه ملک برای معاوضه است، حتماً از فیلد `description` استفاده کن تا بگی مالک ملکش رو با چی معاوضه می‌کنه.
-- پاسخت نباید خیلی طولانی باشه
+- **بسیار مهم**: قیمت کل، قیمت هر متر (vpm_formatted) و متراژ رو حتماً بگو.
+- **بسیار مهم**: اگه فیلد source_link وجود داشت، در انتهای معرفی اون ملک بگو: "جزییات بیشتر و عکس‌ها: [لینک آگهی]"
+- شماره تماس رو در آخر هر ملک بگو.
+- **بسیار مهم**: معاوضه رو (اگه بود) با استفاده از `description` در انتهای توضیحات همون ملک بگو.
 
-سبک: دوستانه، صمیمی، هیجان‌انگیز"""
+سبک: خلاصه، جذاب، دوستانه و صمیمی.
+خیلی طولانی ننویس که سرعت پاسخ‌دهی کم نشه.
+"""
 
         try:
+            start_time = time.time()
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -315,11 +328,13 @@ class RealEstateLLMService:
                 temperature=0.85,
                 max_tokens=1000
             )
+            duration = time.time() - start_time
+            print(f"LLM Response Time (format_results): {duration:.2f}s")
 
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"خطا در فرمت نتایج: {e}")
+            print(f"Error in format_results: {e}")
             return ""
 
     def handle_exchange_conversation(
@@ -372,5 +387,6 @@ class RealEstateLLMService:
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"خطا: {e}")
+            print(f"Error in handle_exchange_conversation: {e}")
+            return "چی می‌خوای معاوضه کنی و ارزشش چقدره؟"
             return "چی می‌خوای معاوضه کنی و ارزشش چقدره؟"

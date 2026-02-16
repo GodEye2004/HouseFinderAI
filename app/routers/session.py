@@ -2,12 +2,9 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from gotrue import Dict
 import app
-from app.agents.graph import create_agent_graph, initialize_state
+from app.agents.graph import initialize_state
 from app.agents.state import AgentState
-from app.services.llm_brain.persistence import load_sessions
-
-sessions: Dict[str, AgentState] = load_sessions()
-agent_graph = create_agent_graph()
+from app.services.llm_brain.persistence import load_sessions, sessions, agent_graph
 
 router = APIRouter()
 

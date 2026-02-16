@@ -1,16 +1,25 @@
 import json
 import os
 from typing import Dict, List
+from app.agents.graph import create_agent_graph
 from app.agents.state import AgentState
 from app.services.brain.memory_service import ConversationMemory
 from app.models.property import UserRequirements, PropertyScore
 
 SESSION_FILE = "data/sessions.json"
 
-def save_sessions(sessions: Dict[str, AgentState]):
+# Shared session store and graph instance
+sessions: Dict[str, AgentState] = {}
+agent_graph = create_agent_graph()
+
+def save_sessions_to_file():
+    """Save the current shared sessions to file"""
+    save_sessions(sessions)
+
+def save_sessions(sessions_to_save: Dict[str, AgentState]):
     """Save sessions to file"""
     data = {}
-    for sid, state in sessions.items():
+    for sid, state in sessions_to_save.items():
         state_copy = state.copy()
         
         # Serialize Memory
@@ -35,6 +44,8 @@ def save_sessions(sessions: Dict[str, AgentState]):
                     serialized_results.append(item)
             state_copy['search_results'] = serialized_results
             
+        # No special serialization needed for shown_properties_context (list of dicts)
+        
         data[sid] = state_copy
         
     os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)

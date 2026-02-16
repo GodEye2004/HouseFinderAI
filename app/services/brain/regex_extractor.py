@@ -136,7 +136,7 @@ class RegexExtractor:
             
         return None
 
-    def extract_exchange_intent(self, text: str) -> bool:
+    def extract_exchange_intent(self, text: str) -> Optional[bool]:
         """Detect if user explicitly wants to check for exchange (Find all exchanges command)."""
         keywords = ['معاوضه', 'طاق', 'تعویض', 'تاخت']
         if any(w in text for w in keywords):
@@ -144,4 +144,4 @@ class RegexExtractor:
             if any(cmd in text for cmd in ['پیدا کن', 'بگرد', 'نشون بده', 'بیار']):
                 return True
             return True
-        return False
+        return None
