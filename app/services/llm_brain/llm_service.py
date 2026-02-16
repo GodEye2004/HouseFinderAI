@@ -39,6 +39,8 @@ class RealEstateLLMService:
             user_intent = "greeting"
         elif any(w in user_message for w in ["?", "؟", "چرا", "چطور", "چگونه", "کدام", "نظر"]):
             user_intent = "question"
+        elif any(w in user_message for w in ["reset", "restart", "پاک کن", "شروع مجدد", "از اول", "پاکسازی"]):
+            user_intent = "reset"
 
         # If we extracted significant data via regex, we can skip LLM for extraction
         if extracted or user_intent != "search":

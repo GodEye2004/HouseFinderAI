@@ -50,6 +50,15 @@ def chat_node(state: AgentState) -> AgentState:
             _update_memory_and_requirements(extracted, memory, requirements, state)
 
             print(f"memory updated {list(memory.facts.keys())}")
+            
+            if user_intent == 'reset':
+                state["requirements"] = UserRequirements()
+                state["memory"] = ConversationMemory()
+                state["search_results"] = []
+                state["shown_properties_context"] = None
+                state["next_message"] = "حافظه و فیلترها پاک شدند. از اول شروع می‌کنیم! چطور می‌تونم کمکتون کنم؟ 🔄"
+                return state
+
             print(
                 f"Requirements updated for city: {requirements.city is not None}")
 
