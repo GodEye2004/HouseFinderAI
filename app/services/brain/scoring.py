@@ -116,12 +116,17 @@ class PropertyScoringSystem:
                 mid = (req.budget_min + req.budget_max) / 2
                 distance = abs(price - mid)
                 range_size = req.budget_max - req.budget_min
-                score_ratio = 1 - (distance / range_size) * 0.3
+                score_ratio = 1 - (distance / max(range_size, 1)) * 0.2
                 return weight * score_ratio, None
             elif price < req.budget_min:
-                return weight * 0.3, None
+                # Heavy penalty for being below range
+                ratio = price / req.budget_min
+                if ratio < 0.5: return 0, None
+                return weight * (ratio * 0.4), None # Max 40% of weight if just below
             else:
-                return 0, None
+                # Penalty for being above range
+                ratio = req.budget_max / price
+                return weight * (ratio * 0.5), None
 
         return 0, "بودجه مشخص نشده"
 

@@ -31,16 +31,26 @@ class RealEstateLLMService:
         # 1. First, try Regex extraction (Accurate & Cost-free)
         extracted = self.regex_extractor.extract_all(user_message)
         
-        # Determine intent based on keywords if not already obvious
+        # Determine intent based on keywords
         user_intent = "search"
-        if extracted.get("wants_exchange"):
-            user_intent = "exchange"
-        elif any(w in user_message for w in ["سلام", "درود", "خسته نباشید"]):
-            user_intent = "greeting"
+        
+        # If we have extracted info, it's likely a search or information update
+        # unless it's explicitly one of the other intents.
+        
+        if any(w in user_message for w in ["reset", "restart", "پاک کن", "شروع مجدد", "از اول", "پاکسازی"]):
+            user_intent = "reset"
         elif any(w in user_message for w in ["?", "؟", "چرا", "چطور", "چگونه", "کدام", "نظر"]):
             user_intent = "question"
-        elif any(w in user_message for w in ["reset", "restart", "پاک کن", "شروع مجدد", "از اول", "پاکسازی"]):
-            user_intent = "reset"
+        elif extracted.get("wants_exchange"):
+            user_intent = "exchange"
+        elif any(w in user_message for w in ["سلام", "درود", "خسته نباشید"]):
+            # Only greeting if NO other substantial info is extracted
+            if not extracted:
+                user_intent = "greeting"
+            else:
+                user_intent = "search"
+        elif not extracted:
+             user_intent = "chat"
 
         # If we extracted significant data via regex, we can skip LLM for extraction
         if extracted or user_intent != "search":
@@ -124,7 +134,11 @@ class RealEstateLLMService:
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"Error in natural_response: {e}")
+            # Handle encoding issues in print safely
+            try:
+                print(f"Error in natural_response: {e}")
+            except UnicodeEncodeError:
+                print(f"Error in natural_response (encoding issue during print)")
             return self._generate_rule_based_response(context, memory)
 
     def _generate_rule_based_response(self, context: Dict, memory: ConversationMemory) -> str:
@@ -160,38 +174,33 @@ class RealEstateLLMService:
 
         has_enough_info = context.get('has_enough_info', False)
 
-        return f"""تو "هومنگر" هستی، یه مشاور املاک خیلی باتجربه و صمیمی.
+        return f"""تو "هومنگر" هستی، یه مشاور املاک خیلی باتجربه، صمیمی و باهوش.
 
-شخصیت تو:
-- مثل یه دوست واقعی صحبت می‌کنی، نه مثل یه ربات
-- سوالات رو به شکل طبیعی و در ضمن گفتگو می‌پرسی
+شخصیت و لحن تو:
+- مثل یه دوست واقعی و مشاور امین صحبت می‌کنی. لحنت صمیمی اما کاملاً حرفه‌ایه.
+- اصلاً مثل ربات یا فرم ثبت‌نام رفتار نکن. از پرسیدن سوالات پشت سر هم به صورت لیستی خودداری کن. 
+- جملاتت باید جریان داشته باشه. اگر کاربر اطلاعاتی داد، اول تاییدش کن (مثلاً: "عالیه، سمت نیاوران گزینه‌های خوبی داریم...") و بعد سوال بعدی رو بپرس.
 
-حافظه مکالمه:
+حافظه مکالمه (چیزهایی که از قبل یادت هست):
 {memory_summary}
 
-وضعیت فعلی:
-{"اطلاعات کافی برای جستجو داری - لطفاً پیشنهاد جستجو بده یا اگر مطمئنی خودت جستجو را شروع کن" if has_enough_info else "نیاز به اطلاعات بیشتر داری"}
+وضعیت فعلی جستجو:
+{"اطلاعات کافی برای پیشنهاد ملک داری. اگر گزینه‌ای می‌بینی، تحلیلش کن و پیشنهاد بده." if has_enough_info else "هنوز نیاز به گپ زدن داری تا بفهمی کاربر دقیقاً چی می‌خواد."}
 
 املاک نمایش داده شده به کاربر (در صورت وجود):
 {json.dumps(shown_properties, ensure_ascii=False) if shown_properties else "هیچ ملکی هنوز نمایش داده نشده است"}
 
-دستورالعمل مهم:
-- اگر شهر و نوع معامله (خرید/اجاره) مشخص شد ولی "قیمت"، "متراژ" یا "وضعیت معاوضه" مشخص نیست:
-  حتما بپرس: "چه بودجه‌ای در نظر دارید؟ چه متراژی؟ و اینکه آیا مایل به معاوضه هستید؟"
-- اگر کاربر گفت "مایل به معاوضه هستم"، حتما بپرس: "چه چیزی برای معاوضه دارید و ارزشش چقدر است؟"
-- سوالات را یکجا نپرس که کاربر گیج شود، اما سعی کن این ۳ مورد (بودجه، متراژ، معاوضه) را پوشش دهی.
+دستورالعمل‌های کلیدی برای مشاوره حرفه‌ای:
+1. **تحلیل عمیق**: اگر ملکی نمایش داده شده، فقط لیست نکن. بگو مثلاً "این مورد چون طبقه بالاست نورگیری بهتری داره" یا "قیمتش نسبت به منطقه عالیه".
+2. **پیشنهاد به جای سوال**: اگر کاربر بودجه‌اش کمه، به جای اینکه فقط بگی "نداریم"، پیشنهاد بده که مثلاً "شاید بهتر باشه متراژ رو کمتر کنیم یا یه محله دیگه رو چک کنیم".
+3. **هوشمندی در بودجه**: اگر کاربر رنج بودجه داد (مثلاً ۵ تا ۹ میلیارد)، نشون بده که فهمیدی و فکوس رو بذار روی کیفیت ملک‌ها در اون رنج.
+4. **تعامل درباره معاوضه**: اگر بحث معاوضه شد، مثل یک متخصص وارد جزئیات شو.
 
-مثال خوب:
-"خب پس برای خرید در تهران دنبال ملک هستی. چقدر بودجه در نظر گرفتی؟ و اینکه متراژ خاصی مد نظرت هست؟"
-"راستی، اگر ملکی برای معاوضه داری هم بهم بگو!"
+مثال مشاوره خوب:
+"خب، با بودجه ۷ میلیاردی که گفتی، توی منطقه ۵ آپارتمان‌های نوساز خوش‌ساختی پیدا میشه. نظرت چیه بریم سراغ متراژهای ۸۰ تا ۹۰ متر؟ یا اینکه اولویتت روی لوکیشن خاصیه؟"
 
-تحلیل املاک (بسیار مهم):
-- اگر کاربر درباره املاک نمایش داده شده سوال پرسید (مثلاً "نظرت چیه؟" یا "کدوم بهتره؟")، حتماً با استفاده از لیست "املاک نمایش داده شده" بالا، آن‌ها را تحلیل کن.
-- به ویژگی‌های مثبت و منفی هر کدام اشاره کن (مثلاً قیمت مناسب، لوکیشن عالی، یا متراژ کم).
-- سعی کن کاربر را برای انتخاب بهتر راهنمایی کنی.
-
-مثال بد:
-"فیلدهای زیر را پر کنید."
+مثال بد (ربات‌گونه):
+"بودجه شما ثبت شد. متراژ را وارد کنید."
 """
 
     def _get_no_results_prompt(self, memory_summary: str, context: Dict) -> str:
@@ -269,7 +278,7 @@ class RealEstateLLMService:
 
         exchange_item = context.get('exchange_item', '')
 
-        return f"""تو "رضا" هستی، مشاور املاک.
+        return f"""تو "هومنگر" هستی، مشاور املاک.
 
 حافظه:
 {memory_summary}
@@ -298,7 +307,7 @@ class RealEstateLLMService:
 
         memory_summary = memory.get_summary()
 
-        system_prompt = f"""تو رضا هستی، مشاور املاک.
+        system_prompt = f"""تو هومنگر هستی، مشاور املاک.
 الان می‌خوای نتایج جستجو رو به شکل جذاب معرفی کنی.
 
 حافظه مکالمه:
@@ -354,7 +363,7 @@ class RealEstateLLMService:
 
         memory_summary = memory.get_summary()
 
-        system_prompt = f"""تو رضا هستی، مشاور املاک.
+        system_prompt = f"""تو هومنگر هستی، مشاور املاک.
 کاربر می‌خواد معاوضه کنه.
 
 حافظه:

@@ -24,9 +24,13 @@ def chat_node(state: AgentState) -> AgentState:
         state["current_stage"] = "greeting"
         return state
 
-    last_message = state["messages"][-1]["content"]
+    last_message = state["messages"][-1]["content"] if state["messages"] else ""
     memory = state["memory"]
     requirements = state["requirements"]
+    
+    # Initialize shown_ids if not present or it's a fresh session
+    if "shown_ids" not in state or state["shown_ids"] is None:
+        state["shown_ids"] = []
 
     print(f"\n{'=' * 60}")
     print(f"user message received")
@@ -41,12 +45,13 @@ def chat_node(state: AgentState) -> AgentState:
                 state["messages"][:-1]
             )
 
-            print(f"Intent: {understanding.get('user_intent')}")
-            print(f"Extracted: {understanding.get('extracted_info')}")
-
             extracted = understanding.get('extracted_info', {})
             user_intent = understanding.get('user_intent', 'chat')
 
+            print(f"Intent: {user_intent}")
+            print(f"Extracted: {extracted}")
+
+            state["last_intent"] = user_intent
             _update_memory_and_requirements(extracted, memory, requirements, state)
 
             print(f"memory updated {list(memory.facts.keys())}")
@@ -56,11 +61,18 @@ def chat_node(state: AgentState) -> AgentState:
                 state["memory"] = ConversationMemory()
                 state["search_results"] = []
                 state["shown_properties_context"] = None
+                state["shown_ids"] = []
                 state["next_message"] = "حافظه و فیلترها پاک شدند. از اول شروع می‌کنیم! چطور می‌تونم کمکتون کنم؟ 🔄"
                 return state
 
-            print(
-                f"Requirements updated for city: {requirements.city is not None}")
+            # Skip search/exchange logic for simple greetings
+            if user_intent == "greeting":
+                print("Greeting received, skipping search.")
+                state = _generate_chat_response(state, memory, last_message)
+                return state
+
+            # DEBUG: Requirements status (internal only)
+            # print(f"Requirements updated for city: {requirements.city is not None}")
 
             # CRITICAL: currect decision
             should_search = _should_search(memory)
@@ -152,6 +164,18 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
                                     requirements: UserRequirements, state: AgentState):
     """update memory and requirements based on extracted information"""
 
+    # If user provides a NEW city, we might want to clear old district and shown_ids
+    if 'city' in extracted and extracted['city'] != memory.get_fact('city'):
+        requirements.district = None
+        memory.add_fact('district', None)
+        state["shown_ids"] = [] # Major change -> allow previously seen properties from new city
+        print(f"   ℹ City changed, clearing district and shown_ids.")
+
+    # Transaction type change also clears shown_ids
+    if 'transaction_type' in extracted and extracted['transaction_type'] != memory.get_fact('transaction_type'):
+        state["shown_ids"] = []
+        print(f"   ℹ Transaction type changed, clearing shown_ids.")
+
     for key, value in extracted.items():
         if value is not None and value != "":
             memory.add_fact(key, value)
@@ -202,12 +226,12 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
                 requirements.wants_exchange = value
                 print(f"   ✓ wants_exchange = {value}")
             
-            # Handle district specifically if it wasn't handled by AttributeError check
+            # Handle district specifically
             if key == 'district':
                 requirements.district = value
                 print(f"   ✓ district = {value}")
 
-    # check transaction type
+    # check transaction type for exchange logic
     if extracted.get('wants_exchange'):
         state["wants_exchange"] = True
         memory.add_fact('wants_exchange', True)
@@ -222,25 +246,26 @@ def _update_memory_and_requirements(extracted: dict, memory: ConversationMemory,
     # ---------------------------------------------------------
     # calculate total purchasing power (cash budget + exchange value)
     # ---------------------------------------------------------
-    # do we have transaction?
     is_exchanging = state.get("wants_exchange") or extracted.get("wants_exchange") or memory.get_fact("wants_exchange")
     
     if is_exchanging:
-        # cash budget (from new statement or memory)
-        cash_budget = extracted.get('budget_max')
-        if not cash_budget:
-            cash_budget = memory.get_fact('budget_max')
+        cash_budget_max = extracted.get('budget_max')
+        if not cash_budget_max:
+            cash_budget_max = memory.get_fact('budget_max')
             
-        # exchange value (from new extract memory)
         exchange_val = extracted.get('exchange_value')
         if not exchange_val:
             exchange_val = memory.get_fact('exchange_value')
             
-        # iffwe have both , add the up +
-        if cash_budget and exchange_val:
-            total_budget = int(cash_budget) + int(exchange_val)
+        if cash_budget_max and exchange_val:
+            total_budget = int(cash_budget_max) + int(exchange_val)
             requirements.budget_max = total_budget
-            print(f"total calculate budget updated")
+            print(f"total calculate budget updated: {total_budget}")
+
+    # Ensure budget_min is synced if present
+    if 'budget_min' in extracted:
+        requirements.budget_min = extracted['budget_min']
+        print(f"   ✓ budget_min = {extracted['budget_min']}")
 
 
 def _should_search(memory: ConversationMemory) -> bool:
@@ -255,11 +280,12 @@ def _should_search(memory: ConversationMemory) -> bool:
     has_area = memory.get_fact('area_min') is not None
     has_transaction = memory.get_fact('transaction_type') is not None
 
-    print(f"   budget: {has_budget}")
-    print(f"   city: {has_city}")
-    print(f"   type: {has_type}")
-    print(f"    transaction: {has_transaction}")
-    print(f"    area(pre meter): {has_area}")
+    # Debug prints (internal)
+    # print(f"   budget: {has_budget}")
+    # print(f"   city: {has_city}")
+    # print(f"   type: {has_type}")
+    # print(f"    transaction: {has_transaction}")
+    # print(f"    area(pre meter): {has_area}")
 
     # If the user explicitly asks for exchanges, be PROACTIVE and search even with missing info
     wants_exchange = memory.get_fact('wants_exchange')
@@ -299,14 +325,22 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
 
     print(f"all properties :  {len(all_properties)}")
 
+    # Clear old context
+    state["shown_properties_context"] = None
+    
     # search with decision engin
     decision_result = decision_engine.make_decision(all_properties, requirements)
+    
+    # Filter results by shown_ids (Deduplication)
+    all_scored = decision_result.get("properties", [])
+    shown_ids = state.get("shown_ids", [])
+    filtered_scored = [s for s in all_scored if s.property_id not in shown_ids]
 
-    state["search_results"] = decision_result.get("properties", [])
+    state["search_results"] = filtered_scored
     state["decision_summary"] = decision_result.get("decision_summary", {})
     state["recommendations"] = decision_result.get("recommendations", [])
 
-    print(f"result: {len(state['search_results'])} properties")
+    print(f"result: {len(state['search_results'])} properties (after deduplication)")
     print(f"status: {decision_result['status']}")
 
     if decision_result["status"] == "need_more_info":
@@ -320,7 +354,7 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
         return state
 
     # create answer with llm(with llm we talk to user)
-    if decision_result["status"] == "no_results":
+    if decision_result["status"] == "no_results" or not filtered_scored:
         context = {
             'stage': 'no_results',
             'decision_summary': decision_result.get("decision_summary", {}),
@@ -335,16 +369,11 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                 conversation_history=state["messages"]
             )
         else:
-            state["next_message"] = "متاسفانه ملک مناسبی پیدا نشد 😔"
+            state["next_message"] = "متاسفانه ملک جدیدی با این مشخصات پیدا نشد 😔"
     else:
         # success , show result
-        results = state["search_results"][:3]
+        results = filtered_scored[:3]
         properties_data = []
-
-        if not results:
-             state["next_message"] = "متاسفانه با معیارهای شما ملکی پیدا نشد."
-             state["current_stage"] = "results_shown"
-             return state
 
         for score in results:
             prop = property_manager.get_property_by_id(score.property_id)
@@ -371,13 +400,26 @@ def _perform_search(state: AgentState, memory: ConversationMemory,
                     "image_url": prop.image_url,
                     "description": prop.description,
                 })
+                # Mark as shown
+                if "shown_ids" not in state:
+                    state["shown_ids"] = []
+                state["shown_ids"].append(prop.id)
 
         # Context for AI to analyze what user is seeing
         state["shown_properties_context"] = properties_data
 
         # Always use rule-based formatting for advertisements per user request.
         # This ensures consistent listing/cards in the Flutter UI.
-        state["next_message"] = _format_simple(properties_data)
+        message = _format_simple(properties_data)
+
+        # If city mismatch occurred, prepend a nice message
+        if decision_result.get('city_mismatch'):
+            original = decision_result.get('original_city', 'شهر مورد نظر')
+            found = decision_result.get('found_city', 'شهرهای دیگر')
+            prefix = f"توی {original} موردی با مشخصات شما پیدا نکردم، ولی توی {found} این {len(properties_data)} مورد دقیقاً با بودجه‌ت سازگاره: ✨\n\n"
+            message = prefix + message
+
+        state["next_message"] = message
 
     state["current_stage"] = "results_shown"
     return state

@@ -50,10 +50,12 @@ def read_root():
 @app.get("/health")
 def health_check():
     """Health check"""
+    from app.services.advertisements.app_property.property_manager import property_manager
     return {
         "status": "healthy",
         "sessions_count": len(sessions),
         "llm_enabled": True,  # check llm exist
+        "properties_stats": property_manager.get_statistics()
     }
 
 

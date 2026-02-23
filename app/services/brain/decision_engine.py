@@ -63,31 +63,34 @@ class DecisionEngine:
             if filters_applied.get('city'):
                 print("search in other city")
                 # Copy of requirements without city
-                relaxed_req = requirements.copy()
+                relaxed_req = requirements.model_copy()
                 relaxed_req.city = None
 
                 # Re-filter without city
                 global_props, _ = self._apply_hard_filters(properties, relaxed_req)
                 
                 if global_props:
-                    #find best match
+                    # rank and find best matches
                     scored_global = self.scoring_system.rank_properties(global_props, relaxed_req)
-                    best_global = scored_global[0] if scored_global else None
                     
                     found_city = "شهرهای دیگر"
-                    if best_global:
-                         p = property_manager.get_property_by_id(best_global.property_id)
+                    if scored_global:
+                         p = property_manager.get_property_by_id(scored_global[0].property_id)
                          if p: found_city = p.city.strip()
 
                     return {
-                        'status': 'no_results',
-                        'properties': [],
+                        'status': 'success',
+                        'city_mismatch': True,
+                        'original_city': requirements.city,
+                        'found_city': found_city,
+                        'properties': scored_global,
                         'decision_summary': {
-                            'reason': f'در {requirements.city} پیدا نشد، اما {len(global_props)} مورد در {found_city} پیدا شد.'
+                            'reason': f'در {requirements.city} پیدا نشد، اما {len(global_props)} مورد در {found_city} پیدا شد.',
+                            'is_global_fallback': True
                         },
                         'recommendations': [
-                            f"در {requirements.city} ملکی نداریم، اما در '{found_city}' موارد مشابهی با بودجه شما موجود است."
-                        ] + self._generate_relaxation_suggestions(requirements, filters_applied)
+                            f"در {requirements.city} ملکی با این مشخصات نداریم، اما این موارد در '{found_city}' کاملاً با بودجه شما سازگاره."
+                        ]
                     }
 
             return {
@@ -191,11 +194,17 @@ class DecisionEngine:
                 ]
             filters_applied['transaction_type'] = True
 
-        # Budget Filter (with 10% tolerance)
+        # Budget Filter (Range)
         if req.budget_max:
-            # Allow up to 10% more than the budget
+            # Allow up to 10% more than the max budget
             budget_tolerance = int(req.budget_max * 1.1)
             filtered = [p for p in filtered if p.price <= budget_tolerance]
+            filters_applied['budget'] = True
+
+        if req.budget_min:
+            # Strict minimum budget filter
+            # (No downward tolerance by default, or maybe 5% for close matches)
+            filtered = [p for p in filtered if p.price >= req.budget_min]
             filters_applied['budget'] = True
 
         # City Filter (Required)
@@ -396,8 +405,13 @@ class DecisionEngine:
     ) -> List[Property]:
         """اعمال یک فیلتر برای محاسبه آمار"""
 
-        if filter_name == 'budget' and req.budget_max:
-            return [p for p in properties if p.price <= req.budget_max]
+        if filter_name == 'budget':
+            res = properties
+            if req.budget_max:
+                res = [p for p in res if p.price <= req.budget_max]
+            if req.budget_min:
+                res = [p for p in res if p.price >= req.budget_min]
+            return res
         elif filter_name == 'city' and req.city:
             return [p for p in properties if p.city.lower() == req.city.lower()]
         elif filter_name == 'district' and req.district:

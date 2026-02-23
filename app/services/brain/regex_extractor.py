@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import List, Dict, Tuple, Any, Optional
 
 class RegexExtractor:
     """
@@ -32,9 +32,12 @@ class RegexExtractor:
         """Run all extractors and return a dictionary of found fields."""
         normalized_text = self._normalize_text(text)
         
+        budget_min, budget_max = self.extract_budget_range(normalized_text)
+        
         result = {
             "city": self.extract_city(normalized_text),
-            "budget_max": self.extract_budget(normalized_text),
+            "budget_min": budget_min,
+            "budget_max": budget_max,
             "area_min": self.extract_area(normalized_text),
             "transaction_type": self.extract_transaction_type(normalized_text),
             "property_type": self.extract_property_type(normalized_text),
@@ -57,34 +60,56 @@ class RegexExtractor:
     def extract_budget(self, text: str) -> Optional[int]:
         """
         Extract budget info. 
-        Handles: "2 miliard", "2.5 miliard", "500 million", "200 toman" (interpreted as million if too small?)
         """
         # Patterns for Billion (Miliard)
-        # 2.5 miliard, 2 miliard, 2B
         miliard_pattern = re.search(r'(\d+(?:\.\d+)?)\s*(میلیارد|ملیارد|بیلیون)', text)
         if miliard_pattern:
             num = float(miliard_pattern.group(1))
             return int(num * 1_000_000_000)
 
         # Patterns for Million
-        # 500 million, 500M
         million_pattern = re.search(r'(\d+(?:\.\d+)?)\s*(میلیون|ملیون)', text)
         if million_pattern:
             num = float(million_pattern.group(1))
             return int(num * 1_000_000)
 
-        # Plain numbers with "Toman" implies context. 
-        # Often people say "100 toman" meaning "100 million" in real estate, 
-        # BUT strictly it means 100. Let's look for explicit large numbers or assume context if needed.
-        # For now, let's stick to explicit units or explicit large numbers.
-        
         # Explicit large number > 10,000,000
-        # 2000000000
         large_num_pattern = re.search(r'\b(\d{8,15})\b', text)
         if large_num_pattern:
             return int(large_num_pattern.group(1))
 
         return None
+
+    def extract_budget_range(self, text: str) -> Tuple[Optional[int], Optional[int]]:
+        """
+        Extract budget range (min to max).
+        Example: "5 ta 9 miliard"
+        """
+        # Range with Billion
+        billion_range = re.findall(r'(\d+(?:\.\d+)?)\s*(?:تا|to|-|—)\s*(\d+(?:\.\d+)?)\s*(میلیارد|ملیارد|بیلیون)', text)
+        if billion_range:
+            min_val = float(billion_range[0][0]) * 1_000_000_000
+            max_val = float(billion_range[0][1]) * 1_000_000_000
+            return int(min_val), int(max_val)
+
+        # Range with Million
+        million_range = re.findall(r'(\d+(?:\.\d+)?)\s*(?:تا|to|-|—)\s*(\d+(?:\.\d+)?)\s*(میلیون|ملیون)', text)
+        if million_range:
+            min_val = float(million_range[0][0]) * 1_000_000
+            max_val = float(million_range[0][1]) * 1_000_000
+            return int(min_val), int(max_val)
+
+        # Single value fallback
+        single_val = self.extract_budget(text)
+        if single_val:
+            # Check if it was "above X" or "below X" or just "X"
+            if any(w in text for w in ["بالای", "بیشتر", "حداقل"]):
+                return single_val, None
+            if any(w in text for w in ["زیر", "کمتر", "حداکثر"]):
+                return None, single_val
+            return None, single_val # Default to max if just one number
+
+        return None, None
 
     def extract_area(self, text: str) -> Optional[int]:
         """Values followed by 'metr'."""

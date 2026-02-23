@@ -28,9 +28,7 @@ def save_sessions(sessions_to_save: Dict[str, AgentState]):
         
         # Serialize Requirements
         if isinstance(state_copy.get('requirements'), UserRequirements):
-            # Use jsonable_encoder or just dict() with mode='json' if pydantic v2
-            # Assuming basic dict() works for simple types, but for Enums json dump handles str
-            state_copy['requirements'] = state_copy['requirements'].model_dump() if hasattr(state_copy['requirements'], 'model_dump') else state_copy['requirements'].dict()
+            state_copy['requirements'] = state_copy['requirements'].model_dump(mode='json') if hasattr(state_copy['requirements'], 'model_dump') else state_copy['requirements'].dict()
             
         # Serialize Search Results
         if state_copy.get('search_results'):

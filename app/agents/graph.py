@@ -39,5 +39,6 @@ def initialize_state(session_id: str) -> AgentState:
         exchange_matches=None,
         needs_user_input=True,
         next_message="",
-        shown_properties_context=None
+        shown_properties_context=None,
+        last_intent=None
     )

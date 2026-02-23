@@ -52,6 +52,12 @@ class AgentState(TypedDict):
     # Context for LLM analysis of shown properties
     shown_properties_context: Optional[List[dict]]
 
+    # Last identified intent
+    last_intent: Optional[str]
+
+    # IDs of properties already shown to user in this session (to avoid repetition)
+    shown_ids: List[str]
+
 
 # Required fields that must be asked from the user
 REQUIRED_FIELDS = {
