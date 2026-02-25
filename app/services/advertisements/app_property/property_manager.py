@@ -135,6 +135,7 @@ class PropertyManager:
             results = database_service.select(
                 "properties", 
                 filters=filters,
+                order_by="created_at DESC",
                 limit=limit,
                 offset=offset
             )
@@ -281,7 +282,7 @@ class PropertyManager:
     def get_divar_properties(self) -> List[Property]:
         """Fetch properties from the divar_data table."""
         try:
-            records = database_service.select("divar_data", limit=500) # Increase limit to find more exchanges
+            records = database_service.select("divar_data", order_by="id DESC", limit=500) # Increase limit to find more exchanges
             properties = []
             for r in records:
                 properties.append(self._map_divar_record_to_property(r))
@@ -464,6 +465,7 @@ class PropertyManager:
             results = database_service.select(
                 "properties", 
                 filters=filters,
+                order_by="created_at DESC",
                 limit=limit,
                 offset=offset
             )

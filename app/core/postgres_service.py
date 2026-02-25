@@ -58,7 +58,7 @@ class PostgresService:
                 return result
 
     def select(self, table: str, columns: str = "*", filters: Dict[str, Any] = None,
-               limit: int = None, offset: int = None) -> List[Dict[str, Any]]:
+               limit: int = None, offset: int = None, order_by: str = None) -> List[Dict[str, Any]]:
         """read new records"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -70,6 +70,8 @@ class PostgresService:
                     where_clause = "WHERE " + " AND ".join(conditions)
 
                 query = f"SELECT {columns} FROM {table} {where_clause}"
+                if order_by:
+                    query += f" ORDER BY {order_by}"
                 if limit is not None:
                     query += f" LIMIT {limit}"
                     if offset is not None:

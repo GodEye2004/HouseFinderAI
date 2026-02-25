@@ -71,6 +71,10 @@ def chat_node(state: AgentState) -> AgentState:
                 state = _generate_chat_response(state, memory, last_message)
                 return state
 
+            if user_intent == 'search':
+                state["shown_ids"] = []
+                print("   ℹ User intent is search, clearing shown_ids for fresh results.")
+
             # DEBUG: Requirements status (internal only)
             # print(f"Requirements updated for city: {requirements.city is not None}")
 
