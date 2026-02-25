@@ -50,10 +50,10 @@ class DecisionEngine:
         )
 
         
-        filtered_properties, filters_applied = self._apply_hard_filters(
-            properties,
-            requirements
-        )
+        # filtered_properties, filters_applied = self._apply_hard_filters(
+        #     properties,
+        #     requirements
+        # )
 
         # Step 3: Scoring properties (soft decisions)
         if not filtered_properties:
