@@ -6,7 +6,7 @@ from typing import Dict
 from app.services.advertisements.divar_property.divar_api import divar_router
 from app.routers import send_otp, session, chat, properties, verify_otp
 from app.services.llm_brain.persistence import load_sessions
-from app.routers import profile
+from app.routers import profile, history
 
 app = FastAPI(
     title="real state agent with memory",
@@ -65,6 +65,7 @@ app.include_router(properties.router, tags=["properties"])
 app.include_router(verify_otp.router, tags=["auth"])
 app.include_router(send_otp.router, tags=["auth"])
 app.include_router(profile.router, tags=["profile"])
+app.include_router(history.router, tags=["history"])
 
 
 if __name__ == "__main__":

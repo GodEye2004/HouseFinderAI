@@ -21,11 +21,26 @@ class PostgresService:
         """create connection pool"""
         self.db_config = {
             "host": os.environ.get("DB_HOST", "localhost"),
-            "port": os.environ.get("DB_PORT", 5433),
+            "port": int(os.environ.get("DB_PORT", 5433)),
             "database": os.environ.get("DB_NAME", "property_db"),
             "user": os.environ.get("DB_USER", "property_user"),
             "password": os.environ.get("DB_PASSWORD", ""),
         }
+        self.initialize_db()
+
+    def initialize_db(self):
+        """Initialize database tables"""
+        query = """
+        CREATE TABLE IF NOT EXISTS chat_history (
+            id SERIAL PRIMARY KEY,
+            user_id UUID NOT NULL,
+            session_id VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        self.execute_raw(query)
 
     @contextmanager
     def get_connection(self):

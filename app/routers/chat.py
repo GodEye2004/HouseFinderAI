@@ -9,6 +9,7 @@ from app.models.user import ChatRequest, ChatResponse
 from app.services.advertisements.app_property.property_manager import property_manager
 from app.services.llm_brain.persistence import load_sessions, save_sessions, sessions, agent_graph
 from app.services.auth.access_token import get_current_user
+from app.services.history.history_service import history_service
 
 # Helper to make authentication optional for chat
 async def get_current_user_optional(current_user: Optional[dict] = Depends(get_current_user)):
@@ -76,6 +77,12 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
     # update state
     sessions[session_id] = result
     save_sessions(sessions)
+    
+    # Save to Postgres History
+    if authorization and authorization.startswith("Bearer "):
+        user_id = user_session_id.replace("user_", "")
+        history_service.save_message(user_id, session_id, "user", request.message)
+        history_service.save_message(user_id, session_id, "assistant", result["next_message"])
 
     # add response to history
     result["messages"].append({"role": "assistant", "content": result["next_message"]})
